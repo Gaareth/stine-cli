@@ -1,0 +1,37 @@
+[package]
+name = "stine-cli"
+version = "0.1.0"
+edition = "2021"
+description = "CLI Utilitly to show information about STINE"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace]
+members = ["lib"]
+
+[dependencies]
+stine-rs = { path = "lib" }
+clap = { version = "4.0.7", features = ["derive", "cargo"] }
+clap-verbosity-flag = "2.0.0"
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.85"
+
+toml = "0.5"
+either = "1.8.0"
+if_chain = "1.0.2"
+
+lettre = "0.10"
+chrono = "0.4.22"
+
+anyhow = "1.0.64"
+thiserror = "1.0.34"
+
+lazy_static = "1.4.0"
+
+prettytable-rs = "^0.9"
+colored = "2.0.0"
+
+reqwest = "0.11.11"
+
+simplelog = "0.12.0"
