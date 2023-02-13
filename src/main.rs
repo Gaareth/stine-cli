@@ -27,7 +27,7 @@ use if_chain::if_chain;
 
 use simplelog::{ColorChoice, CombinedLogger, LevelFilter, WriteLogger, TermLogger, TerminalMode};
 
-const CONFIG_PATH: &str = "./config.toml";
+const CONFIG_PATH: &str = "./stine-cli-config.toml";
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
@@ -267,17 +267,17 @@ struct DerivedArgs {
 fn get_command() -> Command {
     let command = command!().disable_colored_help(false)
         .arg(
-            arg!(--username <USERNAME> "Username for the stine login. Alternatively use config.toml")
+            arg!(--username <USERNAME> "Username for the stine login. Alternatively use stine-cli-config.toml")
                 .required(false)
                 .value_parser(value_parser!(String))
         )
         .arg(
-            arg!(--password <PASSWORD> "Password for the stine login. Alternatively use config.toml")
+            arg!(--password <PASSWORD> "Password for the stine login. Alternatively use stine-cli-config.toml")
                 .required(false)
                 .value_parser(value_parser!(String))
         )
         .arg(
-            arg!(--save_config "Save username and password to config.toml")
+            arg!(--save_config "Save username and password to stine-cli-config.toml")
                 .required(false)
                 .action(ArgAction::SetTrue)
         )

@@ -26,3 +26,6 @@ target/
 *.json
 \lib\.cache
 
+
+stine-cli-config.toml
+

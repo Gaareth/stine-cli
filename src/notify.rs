@@ -130,13 +130,15 @@ pub(crate) fn notify_command(sub_matches: &ArgMatches, stine: &mut Stine) {
 
     let email_cfg = get_email_cfg(sub_matches);
 
-    println!("Events: {:#?}", events);
+    println!("Events: {events:#?}");
     for event in events {
         match event {
-            NotifyEvent::ExamResult => { exam_update(stine, &email_cfg,
-                                                     language, overwrite_lang) }
-            NotifyEvent::RegistrationPeriods => { period_update(stine, &email_cfg) }
-            NotifyEvent::Documents => { documents_update(stine, &email_cfg) }
+            NotifyEvent::ExamResult =>
+                { exam_update(stine, &email_cfg,language, overwrite_lang) }
+            NotifyEvent::RegistrationPeriods =>
+                { period_update(stine, &email_cfg) }
+            NotifyEvent::Documents =>
+                { documents_update(stine, &email_cfg) }
         }
     }
 }
@@ -362,14 +364,14 @@ fn load_data<T: DeserializeOwned>(file_name: &str, passed_lang: Option<&Language
             if lang != saved_lang {
                 if !overwrite_lang {
                     panic!(
-                        "Passed argument language <{:#?}> is different from saved language <{:#?}>. \
-                    Use --force_language to overwrite the old data",
-                        lang, saved_lang);
+                        "Passed argument language <{lang:#?}> is different from saved language <{saved_lang:#?}>. \
+                    Use --force_language to overwrite the old data");
                 }
                 else {
                     // Clearing file contents, so there won't be any false difference due to language diffs.
                     fs::write(Path::new(file_name), String::new())
                         .expect("Failed clearing file for language overwrite");
+                    //TODO: log the action
                 }
             }
 
@@ -378,6 +380,7 @@ fn load_data<T: DeserializeOwned>(file_name: &str, passed_lang: Option<&Language
 
             stine.set_language(&stine_rs::Language::from(saved_lang.clone()))
                 .expect("Failed changing Stine language");
+            //TODO: weird :/
         }
 
         Some(data)
