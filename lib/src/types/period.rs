@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use crate::parse::date::parse_period;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone)]
 pub struct Period {
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
@@ -17,7 +17,7 @@ impl ToString for Period {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone)]
 pub enum RegistrationPeriod {
     Early(Period),
     General(Period),
@@ -41,7 +41,7 @@ pub enum PeriodParseError {
 
     #[error("Invalid Date")]
     /// Valid formats: Eng: "%a,%e %B %Y,%l:%M %P", Ger: ""%a, %d.%m.%y, %H:%M Uhr"
-    InvalidDate(#[from] chrono::ParseError),
+    InvalidDate(#[from] anyhow::Error),
 }
 
 impl RegistrationPeriod {

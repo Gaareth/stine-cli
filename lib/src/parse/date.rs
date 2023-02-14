@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime,
-             ParseError, ParseResult, Utc, TimeZone, Date, NaiveTime,};
+use anyhow::Context;
+use chrono::{Date, DateTime, NaiveDate,
+             NaiveDateTime, NaiveTime, ParseError, ParseResult, TimeZone, Utc, };
 use chrono_tz::Europe::Berlin;
 use lazy_static::lazy_static;
 
@@ -56,7 +57,6 @@ pub fn pre_process_date_string(date_str: &str) -> Result<String, DateTimeParseEr
         ("Fr", "Fri"),
         ("Sa", "Sat"),
         ("So", "Sun"),
-
         ("Mo", "Mon"),
         ("Tu", "Tue"),
         ("We", "Wed"),
@@ -71,18 +71,13 @@ pub fn pre_process_date_string(date_str: &str) -> Result<String, DateTimeParseEr
         ("Feb", "Feb"),
         ("Mär", "Mar"),
         ("Apr", "Apr"),
-
         ("Mai", "May"),
-
         ("Jun", "Jun"),
         ("Jul", "Jul"),
         ("Aug", "Aug"),
         ("Sep", "Sep"),
-
         ("Okt", "Oct"),
-
         ("Nov", "Nov"),
-
         ("Dez", "Dec"),
     ]);
 
@@ -96,13 +91,12 @@ pub fn pre_process_date_string(date_str: &str) -> Result<String, DateTimeParseEr
     let month = match dot_split.len() {
         2 => { dot_split[1].chars().take(4).collect::<String>() }
         3 => { dot_split[1].to_string() }
-        _ => { return Err(DateTimeParseError) }
+        _ => { return Err(DateTimeParseError); }
     }.trim().to_string();
 
     //Mai 2022 14:15
     let fixed_month = month_map.get(month.as_str());
     if let Some(fixed_month) = fixed_month {
-
         if dot_split.len() == 2 {
             fixed_str = fixed_str.replace(month.as_str(), &format!("{}.", fixed_month));
         } else {
@@ -114,11 +108,16 @@ pub fn pre_process_date_string(date_str: &str) -> Result<String, DateTimeParseEr
 }
 
 
+fn try_format(string: &str, format: &str) -> Result<DateTime<Utc>, ParseError> {
+    Ok(stine_naive_to_utc(NaiveDateTime::parse_from_str(string, format)?))
+}
+
 // TODO: wait until chrono has a parse_from_localized_str function
+// TODO: refactor using regex
 // Mon, 20 June 2022, 9:00 am
-fn parse_long_month_datetime(s: &str) -> Result<DateTime<Utc> , ParseError> {
+fn parse_long_month_datetime(to_parse: &str) -> Result<DateTime<Utc>, PeriodParseError> {
     // format string needs to specific for chrono
-    let s = s.replace(" am", ":00 am");
+    let s = to_parse.replace(" am", ":00 am");
     let s = s.replace(" pm", ":00 pm");
     // fix weird formatting of stine dates :(
     let s = s.replace(" ,", ",");
@@ -127,21 +126,21 @@ fn parse_long_month_datetime(s: &str) -> Result<DateTime<Utc> , ParseError> {
 
     let format_eng = "%a,%e %B %Y,%l:%M %P";
     let format_ger = "%a, %d.%m.%y, %H:%M Uhr";
+    let format_ger2 = "%a, %d.%m.%y %H:%M Uhr";
 
-    match NaiveDateTime::parse_from_str(s, format_eng) {
-        Ok(naive_dt) => {
-            Ok(stine_naive_to_utc(naive_dt))
-        }
-        Err(_) => {
-            let s = ger_weekday_to_eng_str(s);
-
-            Ok(
-                stine_naive_to_utc(
-                    NaiveDateTime::parse_from_str(s.as_str(), format_ger)?
-                )
-            )
-        }
+    let dt = try_format(s, format_eng);
+    if dt.is_ok() {
+        return Ok(dt.unwrap());
     }
+
+    let s = ger_weekday_to_eng_str(s);
+    let dt = try_format(s.as_str(), format_ger);
+    if dt.is_ok() {
+        return Ok(dt.unwrap());
+    }
+
+    Ok(try_format(s.as_str(), format_ger2).with_context(|| format!("Failed parsing date: {to_parse}|{s}"))?)
+
 }
 
 pub fn stine_naive_to_utc(naive: NaiveDateTime) -> DateTime<Utc> {
@@ -181,7 +180,6 @@ pub fn parse_period(s: &str) -> Result<Period, PeriodParseError> {
         start: parse_long_month_datetime(split.next().unwrap())?,
         end: parse_long_month_datetime(split.next().unwrap())?,
     })
-
 }
 
 /// Parses simple date strings in the following format: "%a,%e. %b. %Y" or "%a,%e. %b %Y"
@@ -216,8 +214,7 @@ pub fn parse_stine_datetime(date_str: &str) -> Result<DateTime<Utc>, Box<dyn Err
 }
 
 pub fn try_parse_datetime(date_str: &str, format_1: &str, fallback_format: &str)
-    -> Result<DateTime<Utc>, Box<dyn Error>> {
-
+                          -> Result<DateTime<Utc>, Box<dyn Error>> {
     match NaiveDateTime::parse_from_str(date_str, format_1) {
         Ok(dt) => Ok(stine_naive_to_utc(dt)),
         Err(_) => {
@@ -225,16 +222,16 @@ pub fn try_parse_datetime(date_str: &str, format_1: &str, fallback_format: &str)
                 Ok(dt) => Ok(stine_naive_to_utc(dt)),
                 Err(err) => Err(Box::new(err))
             }
-        },
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+
     use crate::parse::date::{parse_long_month_datetime, stine_naive_to_utc};
     use crate::parse::parse_appointment_datetime;
-
 
     #[test]
     fn test_long_month_date_parsing() {
@@ -250,7 +247,6 @@ mod tests {
             .and_hms(13, 0, 0));
         assert_eq!(dt, parse_long_month_datetime("Sat, 1 Jan 2022, 1 pm").unwrap());
         assert_eq!(dt, parse_long_month_datetime("Sa, 01.01.22, 13:00 Uhr").unwrap());
-
     }
 
     #[test]

@@ -1,16 +1,26 @@
+use std::env;
+use std::path::PathBuf;
 use stine_rs::Stine;
 
-//TODO: use env var
 fn auth() -> Stine {
-    Stine::new("***REMOVED***", "***REMOVED***")
-        .expect("Failed authenticating with Stine")
+    dotenv::from_path("../.env")
+        .expect("Failed loading .env file. \
+        Make sure there is a .env file in stine-rs/ and you are running from stine-rs/lib");
+
+    Stine::new(env::var("username").unwrap().as_str(),
+               env::var("password").unwrap().as_str())
+            .expect("Failed authenticating with Stine")
 }
 
 
 #[cfg(test)]
 mod test_auth {
+    use lazy_static::lazy_static;
     use stine_rs::Stine;
     use crate::auth;
+    lazy_static! {
+
+    }
 
     #[test]
     fn test_credentials() {

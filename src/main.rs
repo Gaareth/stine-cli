@@ -24,10 +24,12 @@ use colored::Colorize;
 use either::Either;
 
 use if_chain::if_chain;
+use log::{info, trace};
 
 use simplelog::{ColorChoice, CombinedLogger, LevelFilter, WriteLogger, TermLogger, TerminalMode};
 
-const CONFIG_PATH: &str = "./stine-cli-config.toml";
+// reusing the config as env file ( ͠° ͟ʖ ͡°), don't know if good or bad ( ͡ʘ ͜ʖ ͡ʘ)
+const CONFIG_PATH: &str = "./.env";
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
@@ -38,7 +40,7 @@ struct Config {
 }
 
 /// `Config` implements `Default`
-impl ::std::default::Default for Config {
+impl Default for Config {
     fn default() -> Self { Self { username: "".to_string(), password: "".to_string(),
         session: "".to_string(), cnsc_cookie: "".to_string() } }
 }
@@ -267,17 +269,17 @@ struct DerivedArgs {
 fn get_command() -> Command {
     let command = command!().disable_colored_help(false)
         .arg(
-            arg!(--username <USERNAME> "Username for the stine login. Alternatively use stine-cli-config.toml")
+            arg!(--username <USERNAME> "Username for the stine login. Alternatively use .env file")
                 .required(false)
                 .value_parser(value_parser!(String))
         )
         .arg(
-            arg!(--password <PASSWORD> "Password for the stine login. Alternatively use stine-cli-config.toml")
+            arg!(--password <PASSWORD> "Password for the stine login. Alternatively use .env file")
                 .required(false)
                 .value_parser(value_parser!(String))
         )
         .arg(
-            arg!(--save_config "Save username and password to stine-cli-config.toml")
+            arg!(--save_config "Save username and password to .env file")
                 .required(false)
                 .action(ArgAction::SetTrue)
         )
@@ -341,13 +343,16 @@ fn get_command() -> Command {
                         .required(false)
                         .value_parser(value_parser!(Language))
                         .help("STINE Language setting. Necessary for data comparison. \
-                        If not specified, default of your stine account or the language saved for data comparison is used.\
+                        If not specified, default of your stine account(if nothing saved) or the language saved for data comparison is used. \
                         Errors if either default or specified language is different from the saved language of the data"))
                     .arg(arg!(--force_language)
                         .required(false)
                         .action(ArgAction::SetTrue)
                         .help("Overwrites the saved language, \
-                        will delete old data and replace it with new data in the specified <LANGUAGE> using --language")),
+                        will delete old data and replace it with new data in the specified <LANGUAGE> using --language"))
+                    .arg(arg!(--dry)
+                        .required(false)
+                        .action(ArgAction::SetTrue).help("Only output to stdout.")),
 
                 Command::new("check")
                     .about("Check your credentials and connection to Stine")
@@ -378,17 +383,18 @@ fn main() {
         .unwrap();
     let log_level: LevelFilter = derived_matches.verbose.log_level_filter();
 
-    println!("LogLevel: [{log_level}]");
-
     let log_config = simplelog::ConfigBuilder::new()
-        .add_filter_allow_str("stine_rs").build();
+        .add_filter_allow_str("stine")
+        .build();
+
     CombinedLogger::init(
         vec![
             TermLogger::new(log_level, log_config.clone(), TerminalMode::Mixed, ColorChoice::Auto),
-            WriteLogger::new(LevelFilter::Debug, log_config, File::create("stine-cli.log").unwrap()),
+            WriteLogger::new(LevelFilter::Trace, log_config, File::create("stine-cli.log").unwrap()),
         ]
     ).unwrap();
 
+    info!("LogLevel: [{log_level}]");
 
     let mut auth_cfg = get_credentials(&matches);
 
@@ -411,7 +417,7 @@ fn main() {
                 stine.get_all_semester_results()
                     .unwrap_or_else(|_| { panic!("{}", "Request Error while trying to fetch all semester results".bright_red()) })
             } else {
-                println!("Selected Semesters: {:#?}", semesters);
+                println!("Selected Semesters: {semesters:#?}");
                 stine.get_semester_results(semesters)
                     .unwrap_or_else(|_| { panic!("{}", "Request Error while trying to fetch semester results".bright_red()) })
             };

@@ -8,6 +8,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use anyhow::anyhow;
+use log::trace;
 use scraper::{Html};
 use reqwest::blocking::Response;
 use regex::{Regex};
@@ -103,6 +104,7 @@ impl Stine {
         };
         Self::is_authenticated(&stine)?;
 
+        trace!("Successfully authenticated using session and cookie");
         stine.language = Some(stine.get_language().unwrap());
         Ok(stine)
     }
@@ -116,6 +118,7 @@ impl Stine {
         let mut stine = Self::authenticate(Stine::default(), username, password)?;
         Self::is_authenticated(&stine)?;
 
+        trace!("Successfully authenticated using username and password");
         stine.language = Some(stine.get_language().unwrap());
         Ok(stine)
     }
@@ -258,7 +261,7 @@ impl Stine {
         Ok(parse::registrations::parse_my_registrations(resp.text()?, self, lazy))
     }
 
-    /// Returns all modules you can registrate for.
+    /// Returns all modules you can register for.
     /// **Note**: By default, this information, will be loaded from a chache file, because
     /// **Warning**: scraping this info, can take several minutes
     /// # Arguments

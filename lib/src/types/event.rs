@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 use chrono::{DateTime, Utc};
-use mapstruct::derive::{FromMap};
+// use mapstruct::derive::{FromMap};
 use scraper::Html;
 use serde::{Deserialize, Serialize};
 use struct_field_names_as_array::FieldNamesAsArray;
@@ -283,7 +283,7 @@ pub struct Appointment {
 }
 
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, FromMap, FieldNamesAsArray)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, FieldNamesAsArray)]
 pub struct CourseResult {
     pub number: String,
     pub name: String,
