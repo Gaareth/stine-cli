@@ -35,15 +35,6 @@ mod test_auth {
 
         Stine::new_session(cnsc.as_str(), session.as_str()).unwrap();
     }
-
-    // #[test]
-    // fn test_long_session() {
-    //     let s = Stine::new("***REMOVED***", "***REMOVED***").unwrap();
-    //     let session = s.session.unwrap();
-    //     let cnsc = s.cnsc_cookie.unwrap();
-    //
-    //     Stine::new_session(cnsc.as_str(), session.as_str()).unwrap();
-    // }
 }
 
 #[cfg(test)]
