@@ -38,6 +38,7 @@ enum EmailError {
     MissingSMTPInfo,
 }
 
+// Load smtp url and port for common domains
 lazy_static! {
     static ref SMTP_SETTINGS_MAP: HashMap<String, SmtpSettings> = HashMap::from([
         ("outlook.de".to_owned(), SmtpSettings::new("smtp-mail.outlook.com", 587)),
@@ -89,6 +90,7 @@ impl EmailAuthConfig {
     }
 }
 
+/// Loads `EmailAuthConfig` from CLI Matches
 fn get_email_cfg(sub_matches: &ArgMatches) -> EmailAuthConfig {
     let email_address: &String = sub_matches.get_one("email_address").unwrap();
     let email_password: &String = sub_matches.get_one("email_password").unwrap();
@@ -108,7 +110,10 @@ fn get_email_cfg(sub_matches: &ArgMatches) -> EmailAuthConfig {
         } else {
             match EmailAuthConfig::new(email_address.to_owned(), email_password.to_owned()) {
                 Ok(cfg) => cfg,
-                Err(error) => {error!("Error: {error}"); exit(-1)},
+                Err(error) => {
+                    error!("Failed determining smtp settings: {error}");
+                    panic!("{error}")
+                },
             }
         }
     }
@@ -171,6 +176,7 @@ pub(crate) fn notify_command(sub_matches: &ArgMatches, stine: &mut Stine) {
     }
 }
 
+/// checks for new registration periods
 fn period_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup {
     let registration_periods: Vec<RegistrationPeriod> = stine.get_registration_periods()
         .expect("Request Error while trying to fetch registration periods");
@@ -228,6 +234,7 @@ fn period_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup {
     NotificationGroup::new("A new registration period just started", notifications)
 }
 
+/// Checks for new stine documents
 fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup {
     trace!("Checking for new documents");
     let current_documents: Vec<Document> = stine.get_documents()
@@ -302,7 +309,7 @@ impl NotificationGroup {
     }
 }
 
-
+/// checks for new exam updates
 fn exam_update(stine: &mut Stine,
                arg_lang: Option<&Language>, overwrite_lang: bool,
                path: &Path, dry: bool)
@@ -350,6 +357,9 @@ fn exam_update(stine: &mut Stine,
     NotificationGroup::from_changes(Changes::new(changes), "Update in course results")
 }
 
+/// converts `SemesterResult` list to Map of `CourseResults` where
+///     - key: CourseNumber
+///     - value: `CourseResult`
 fn map_semester_results_by_id(semester_results: Vec<SemesterResult>) -> HashMap<String, CourseResult> {
     let mut courses_map: HashMap<String, CourseResult> = HashMap::new();
 
@@ -456,13 +466,16 @@ fn get_exam_changes(old_map: HashMap<String, CourseResult>, new_map: &HashMap<St
     changes
 }
 
-
+/// Abstract Wrapper for Data with an associated language
 #[derive(Serialize, Deserialize)]
 struct DataWrapper<T> {
     language: Language,
     data: T,
 }
 
+/// Loads data from file and checks for language inconsistencies.
+/// If the passed language is different from the language of the saved data, the --force_language
+/// has to be provided
 fn load_data<T: DeserializeOwned>(path: &Path, file_name: &str, passed_lang: Option<&Language>, overwrite_lang: bool, stine: &mut Stine)
                                   -> Option<DataWrapper<T>> {
     let file_path = path.join(file_name);
@@ -497,6 +510,10 @@ fn load_data<T: DeserializeOwned>(path: &Path, file_name: &str, passed_lang: Opt
     Some(data)
 }
 
+/// # Panics
+/// panics when:
+/// - filepath hash no parent
+/// - JSON file at file_path can't be deserialized
 fn read_data<T: DeserializeOwned>(file_path: &Path) -> io::Result<T> {
     fs::create_dir_all(file_path.parent().unwrap())?;
     let data = fs::read_to_string(file_path)?;
@@ -505,8 +522,14 @@ fn read_data<T: DeserializeOwned>(file_path: &Path) -> io::Result<T> {
             panic!("Failed to deserialize json file. Consider fixing or deleting {file_path:#?}")))
 }
 
+/// # Panics
+/// panics when:
+/// - filepath hash no parent
+/// - can't create directory
+/// - can't write to file at file_path
+/// - data can't be serialized
 fn write_data<T: Serialize>(file_path: &Path, data: T) {
-    fs::create_dir_all(file_path.parent().unwrap()).expect("Failed creating notify directory");
+    fs::create_dir_all(file_path.parent().unwrap()).expect("Failed creating directory");
 
     let json_string = serde_json::to_string(&data).expect("Failed serializing data to json");
     fs::write(file_path, json_string)
@@ -577,6 +600,7 @@ mod tests {
         assert_eq!("test", data);
     }
 
+    // TODO: impl this
     // #[test]
     // fn test_exam_change() {
     //     write_data(&TEST_PATH.join("course_results.json"), Vec::<CourseResult>::new());
