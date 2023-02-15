@@ -57,7 +57,6 @@ fn sem_results_log() {
     let results = stine
             .get_all_semester_results(LazyLevel::NotLazy).unwrap();
         assert!(!results.is_empty());
-
 }
 
 #[cfg(test)]
