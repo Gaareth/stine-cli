@@ -16,6 +16,7 @@ use serde::de::DeserializeOwned;
 use thiserror::Error;
 
 use stine_rs::{CourseResult, Document, RegistrationPeriod, SemesterResult, Stine};
+use stine_rs::LazyLevel::FullLazy;
 
 use crate::Language;
 
@@ -320,7 +321,7 @@ fn exam_update(stine: &mut Stine,
     let data: Option<DataWrapper<HashMap<String, CourseResult>>> =
         load_data(path, file_name, arg_lang, overwrite_lang, stine);
 
-    let semester_results: Vec<SemesterResult> = stine.get_all_semester_results()
+    let semester_results: Vec<SemesterResult> = stine.get_all_semester_results(FullLazy)
         .expect("Request Error while trying to fetch all semester results");
 
     let latest_map = map_semester_results_by_id(semester_results);
@@ -490,11 +491,11 @@ fn load_data<T: DeserializeOwned>(path: &Path, file_name: &str, passed_lang: Opt
             if !overwrite_lang {
                 error!(
                     "Passed argument language <{lang:#?}> is different from saved language <{saved_lang:#?}>. \
-                    Use --force_language to overwrite the old data");
+                    Use --force-language to overwrite the old data");
                 panic!();
             } else {
                 warn!("Clearing old data(deleting it), \
-                because of --force_language and difference of saved an passed language");
+                because of --force-language and difference of saved an passed language");
                 // Clearing file contents, so there won't be any false difference due to language diffs.
                 fs::remove_file(file_path.clone())
                     .unwrap_or_else(|_| panic!("Failed deleting old comparison file {file_path:#?}"));

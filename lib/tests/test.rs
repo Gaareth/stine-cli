@@ -1,26 +1,37 @@
+#![feature(let_chains)]
+
 use std::env;
 use std::path::PathBuf;
-use stine_rs::Stine;
+
+use stine_rs::{LazyLevel, Stine};
 
 fn auth() -> Stine {
     dotenv::from_path("../.env")
         .expect("Failed loading .env file. \
         Make sure there is a .env file in stine-rs/ and you are running from stine-rs/lib");
 
+    // try session first to reduce login calls
+    // cons: the session key wont be update, TODO: impl this :(
+    if let Ok(session) = env::var("session")
+        && let Ok(cnsc_cookie) = env::var("cookie") {
+        if let Ok(stine) = Stine::new_session(cnsc_cookie.as_str(), session.as_str()) {
+            return stine;
+        }
+    }
+
     Stine::new(env::var("username").unwrap().as_str(),
                env::var("password").unwrap().as_str())
-            .expect("Failed authenticating with Stine")
+        .expect("Failed authenticating with Stine")
 }
 
 
 #[cfg(test)]
 mod test_auth {
     use lazy_static::lazy_static;
-    use stine_rs::Stine;
-    use crate::auth;
-    lazy_static! {
 
-    }
+    use stine_rs::Stine;
+
+    use crate::auth;
 
     #[test]
     fn test_credentials() {
@@ -37,12 +48,27 @@ mod test_auth {
     }
 }
 
+
+
+#[test_log::test]
+fn sem_results_log() {
+    let stine = auth();
+
+    let results = stine
+            .get_all_semester_results(LazyLevel::NotLazy).unwrap();
+        assert!(!results.is_empty());
+
+}
+
 #[cfg(test)]
 mod test_functionality {
     use std::sync::Mutex;
     use std::time::Instant;
-    use stine_rs::{Language, LazyLevel, Stine, SubModule};
+
     use lazy_static::lazy_static;
+
+    use stine_rs::{Language, LazyLevel, Stine, SubModule};
+
     use crate::auth;
 
     lazy_static! {
@@ -81,7 +107,7 @@ mod test_functionality {
         let module_categories = stine
             .get_my_registrations(LazyLevel::FullLazy).unwrap();
 
-        let mut first_submodule: SubModule= module_categories.accepted_submodules.first()
+        let mut first_submodule: SubModule = module_categories.accepted_submodules.first()
             .cloned().unwrap();
         let apps = first_submodule.appointments(&stine);
         let info = first_submodule.info(&stine);
@@ -99,7 +125,7 @@ mod test_functionality {
     #[test]
     fn test_get_semester_results() {
         let results = STINE.lock().unwrap()
-            .get_all_semester_results().unwrap();
+            .get_all_semester_results(LazyLevel::NotLazy).unwrap();
         assert!(!results.is_empty());
     }
 

@@ -80,7 +80,7 @@ fn parse_submodules_table(table: &ElementRef, stine: &mut Stine, lazy: LazyLevel
             let id = args[2].split("-N").nth(1).unwrap().to_owned();
 
             if let Ok(submod) = stine.get_submodule_by_id(id, false, lazy).cloned() {
-                dbg!(&submod.name);
+                // dbg!(&submod.name);
 
                 // for groups, the submodule with all groups has the same ID as an entry
                 // which is a specific group of the submodule
@@ -116,8 +116,8 @@ pub fn parse_my_registrations(html_content: String, stine: &mut Stine, lazy: Laz
 
     let pending_submodules = parse_pending_registrations(&html, stine, lazy);
     let accepted_submodules = parse_accepted_registrations(&html, stine, lazy);
-    // let rejected_submodules = parse_rejected_registrations(&html, stine, lazy);
-    // let accepted_modules = parse_accepted_module_registrations(&html, stine, lazy);
+    let rejected_submodules = parse_rejected_registrations(&html, stine, lazy);
+    let accepted_modules = parse_accepted_module_registrations(&html, stine, lazy);
 
 
     stine.save_maps().unwrap();

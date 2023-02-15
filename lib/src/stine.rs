@@ -1,4 +1,3 @@
-use crate::{Document, LazyLevel, parse, utils};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
@@ -9,19 +8,18 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use log::trace;
-use scraper::{Html};
+use regex::Regex;
 use reqwest::blocking::Response;
-use regex::{Regex};
 use reqwest::header::{CONTENT_TYPE, COOKIE, HeaderMap, ORIGIN, REFERER, REFRESH, SET_COOKIE};
+use scraper::Html;
 use thiserror::Error;
 
-
+use crate::{Document, GradeStats, LazyLevel, parse, utils};
 use crate::{Module, ModuleCategory, SubModule};
-use crate::Language;
-use crate::parse::results::parse_course_results;
-use crate::RegistrationPeriod;
 use crate::{Semester, SemesterResult};
-
+use crate::Language;
+use crate::parse::results::{parse_course_results, parse_grade_stats};
+use crate::RegistrationPeriod;
 use crate::utils::{save_modules, save_submodules};
 
 const API_URL: &str = "https://stine.uni-hamburg.de/scripts/mgrqispi.dll";
@@ -85,7 +83,7 @@ impl Default for Stine {
             language: None,
             submod_map: None,
             mod_map: None,
-            mod_categories: None
+            mod_categories: None,
         }
     }
 }
@@ -172,7 +170,7 @@ impl Stine {
             return match Self::check_for_error(response.text().unwrap()) {
                 Ok(_) => StineError::AnyError(error),
                 Err(error) => StineError::AuthError(error),
-            }
+            };
         }
         StineError::RequestError(response.unwrap_err())
     }
@@ -189,7 +187,6 @@ impl Stine {
             ("menu_type", "classic"),
             ("browser", ""),
             ("platform", ""),
-
         ]);
 
         let response = Self::post_static(&stine.client, API_URL,
@@ -226,7 +223,7 @@ impl Stine {
 
         // let first_match = matches.nth(0).expect("Missing argument entry");
         // +2 to remove the "-N"
-        let session = Some(refresh_header.to_string()[mat.start()+2..mat.end()].to_string());
+        let session = Some(refresh_header.to_string()[mat.start() + 2..mat.end()].to_string());
 
         // set language to english to parse dates properly, see parse.rs
         // self.set_language(Language::English);
@@ -248,7 +245,7 @@ impl Stine {
     /// Returns the various Registration periods, found under Service > Registration periods
     pub fn get_registration_periods(&self) -> Result<Vec<RegistrationPeriod>, reqwest::Error> {
         let resp = self.post_with_arg("EXTERNALPAGES", vec![
-           "-N000385".to_owned(),"-Aanmeldephasen".to_owned()
+            "-N000385".to_owned(), "-Aanmeldephasen".to_owned(),
         ])?;
         Ok(parse::periods::parse_registration_periods(resp.text()?))
     }
@@ -262,10 +259,10 @@ impl Stine {
     }
 
     /// Returns all modules you can register for.
-    /// **Note**: By default, this information, will be loaded from a chache file, because
+    /// **Note**: By default, this information, will be loaded from a cache file, because
     /// **Warning**: scraping this info, can take several minutes
     /// # Arguments
-    ///     - force_reload: scrape all module from stine, without loading them from the cache file
+    ///     - force_reload: scrape all module from stine, without loading them from the cache file. *ONLY DO THIS SPARSELY PLEASE, TAKES MULTIPLE MINUTES*
     ///     - print_progress_bar: prints a nice progress bar and more status info to the stdout.
     ///     - lazy: Lazy loads certain info, reduces api calls and especially time to fetch the info
     ///
@@ -274,7 +271,7 @@ impl Stine {
     /// Will return error if language cant be determined, the request to REGISTRATION fails,
     /// or the module categories can't be save
     pub fn get_registration_modules(&mut self, force_reload: bool, print_progress_bar: bool, lazy: LazyLevel)
-        -> Result<Vec<ModuleCategory>, anyhow::Error> {
+                                    -> Result<Vec<ModuleCategory>, anyhow::Error> {
         let lang = self.get_language()?;
 
         if !force_reload {
@@ -295,14 +292,12 @@ impl Stine {
     }
 
     pub fn get_module_category(&self, category_name: &str, lazy: LazyLevel)
-        -> Result<Option<ModuleCategory>, StineError> {
+                               -> Result<Option<ModuleCategory>, StineError> {
         let resp = self.post_with_arg("REGISTRATION", vec![])?;
         Ok(parse::parse_get_module_category(resp.text()?, self, category_name, lazy))
     }
 
-    fn check_in_map() {
-
-    }
+    fn check_in_map() {}
 
     /// Returns [`SubModule`] by specifying its id
     /// # Arguments:
@@ -322,12 +317,11 @@ impl Stine {
             }
             self.submod_map.as_ref().unwrap().get(id.as_str())
                 .ok_or_else(|| StineError::AnyError(anyhow!("SubModule not found maybe try force reloading")))
-
         } else {
             self.get_registration_modules(true, false, lazy)?;
             self.submod_map.as_ref().unwrap().get(id.as_str())
                 .ok_or_else(|| StineError::AnyError(anyhow!("SubModule not found")))
-        }
+        };
     }
 
     /// Returns [`Module`] by specifying its id
@@ -341,8 +335,7 @@ impl Stine {
     /// Returns a result of either the found submodule or an error why it cant be found.
     /// It's possible that you have to retry calling this method wih `force_reload` enabled.
     pub fn get_module_by_number(&mut self, module_number: String, force_reload: bool, lazy: LazyLevel)
-                               -> Result<&Module, anyhow::Error> {
-
+                                -> Result<&Module, anyhow::Error> {
         return if !force_reload {
             if self.mod_map.is_none() {
                 self.load_maps()?;
@@ -353,27 +346,59 @@ impl Stine {
             self.get_registration_modules(true, false, lazy)?;
             self.mod_map.as_ref().unwrap().get(module_number.as_str())
                 .ok_or_else(|| anyhow!("Module not found"))
-        }
-
+        };
     }
     /// Returns exam and semester results of selected semesters
+    ///
+    /// **Note**: If you don't need the `GradeStats` please use `LazyLevel::FullLazy` to reduce the calls to stine
     /// # Arguments:
-    ///     - semesters: Semesters you want the exam and end results of
-    pub fn get_semester_results(&self, semesters: Vec<Semester>)
-        -> Result<Vec<SemesterResult>, reqwest::Error> {
+    /// * `semesters`  - Semesters you want the exam and end results of
+    /// * `lazy_level` - Pass anything but `LazyLevel::FullLazy` to directly fetch `GradeStats` for the `CourseResult`s
+    pub fn get_semester_results(&self, semesters: Vec<Semester>, lazy_level: LazyLevel)
+                                -> Result<Vec<SemesterResult>, reqwest::Error> {
         let resp = self.post_with_arg("COURSERESULTS", vec![])?;
         Ok(parse_course_results(resp.text()?, self,
-                                semesters, false))
+                                semesters, false, lazy_level))
     }
 
     /// Returns all exam and semester results
-    pub fn get_all_semester_results(&self) -> Result<Vec<SemesterResult>, reqwest::Error> {
+    ///
+    /// **Note**: If you don't need the `GradeStats` please use `LazyLevel::FullLazy` to reduce the calls to stine
+    /// # Arguments
+    /// * `lazy_level` - Pass anything but `LazyLevel::FullLazy` to directly fetch `GradeStats` for the `CourseResult`s
+    pub fn get_all_semester_results(&self, lazy_level: LazyLevel) -> Result<Vec<SemesterResult>, reqwest::Error> {
         let resp = self.post_with_arg("COURSERESULTS", vec![])?;
 
         // Self::save_to_file(resp);
 
         Ok(parse_course_results(resp.text()?, self,
-                                Vec::new(), true))
+                                Vec::new(), true, lazy_level))
+    }
+
+
+    /// Get `GradeStats` for specified exam and provided course_id
+    /// # Arguments
+    /// * `course_id` - the course id for the written exam, looks like this: 389187951081
+    /// * `attempt` - the attempt of the exam. 0 is all exams. 99 is the maximum
+    pub fn get_grade_stats_for_exam(&self, course_id: &str, attempt: u8) -> GradeStats {
+        let resp = self.post_with_arg("GRADEOVERVIEW",
+                                      vec![
+                                          String::from("-N000460"), // somewhat related to the language N000318 -> german? N000460->? english
+                                          String::from("-AMOFF"), // no idea
+                                          format!("-N{course_id}"), // specifies selected exam?/course?
+                                          format!("-N{attempt}"), // the attempt (max 99). very cool info actually, but data looks a bit weird
+                                      ]).unwrap();
+
+        // actually parse grade stats
+        let html_to_parse = Html::parse_fragment(&resp.text().unwrap());
+        parse_grade_stats(&html_to_parse, course_id)
+    }
+
+    /// Get `GradeStats` for a course
+    /// # Arguments
+    /// * `course_id` - the course id, looks like this: 38918795108
+    pub fn get_grade_stats_for_course(&self, course_id: &str) -> GradeStats {
+        self.get_grade_stats_for_exam(course_id, 0)
     }
 
     /// Returns the current language tied to your stine account
@@ -404,7 +429,7 @@ impl Stine {
         self.post_with_arg("CHANGELANGUAGE", vec![lang_code])?;
 
         if &self.get_language()? != lang {
-            return Err(anyhow!("Failed changing STINE language"))
+            return Err(anyhow!("Failed changing STINE language"));
         }
 
         Ok(())
@@ -413,13 +438,13 @@ impl Stine {
 
     pub fn ensure_language(&self) -> Result<(), StineError> {
         assert_eq!(&self.get_language()?, self.language.as_ref().unwrap(),
-        "Set language does not equal current stine language");
+                   "Set language does not equal current stine language");
         Ok(())
     }
 
 
     fn post_static(client: &Client, url: &str, mut headers: HeaderMap, data: HashMap<&str, &str>)
-        -> reqwest::Result<Response> {
+                   -> reqwest::Result<Response> {
         headers.insert(CONTENT_TYPE, "application/x-www-form-urlencoded".parse().unwrap());
         headers.insert(REFERER, format!("{BASE_URL}/").parse().unwrap());
         headers.insert(ORIGIN, BASE_URL.parse().unwrap());
@@ -434,7 +459,7 @@ impl Stine {
             headers.insert(COOKIE, format!("cnsc={}", cnsc).parse().unwrap());
         }
 
-       Self::post_static(&self.client, url, headers, data)
+        Self::post_static(&self.client, url, headers, data)
     }
 
     // pub fn get(&self, url: &str) -> reqwest::Result<Response> {
@@ -493,7 +518,6 @@ impl Stine {
     fn categories_to_maps(&mut self, categories: Vec<ModuleCategory>) {
         for c in categories {
             for module in c.modules {
-
                 for submodule in &module.sub_modules {
                     self.submod_map.as_mut().unwrap().insert(
                         submodule.id.to_string(), submodule.clone());
@@ -501,7 +525,6 @@ impl Stine {
 
                 let mod_num = module.clone().module_number;
                 self.mod_map.as_mut().unwrap().insert(mod_num.to_string(), module);
-
             }
 
             for submodule in c.orphan_submodules {
@@ -542,7 +565,6 @@ impl Stine {
         Ok(())
     }
 }
-
 
 
 #[derive(Debug)]

@@ -456,6 +456,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_logger"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85cdab6a89accf66733ad5a1693a4dcced6aeff64602b634530dd73c1f3ee9f0"
+dependencies = [
+ "humantime",
+ "is-terminal",
+ "log",
+ "regex",
+ "termcolor",
+]
+
+[[package]]
 name = "errno"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -717,6 +730,12 @@ name = "httpdate"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
+
+[[package]]
+name = "humantime"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hyper"
@@ -1802,6 +1821,7 @@ dependencies = [
  "dotenv",
  "dotenv_codegen",
  "either",
+ "env_logger",
  "if_chain",
  "lazy_static",
  "lettre",
@@ -1812,6 +1832,7 @@ dependencies = [
  "serde_json",
  "simplelog",
  "stine-rs",
+ "test-log",
  "thiserror",
  "toml",
 ]
@@ -1826,6 +1847,7 @@ dependencies = [
  "dirs",
  "dotenv",
  "either",
+ "env_logger",
  "indicatif",
  "lazy_static",
  "log",
@@ -1835,6 +1857,7 @@ dependencies = [
  "serde",
  "serde_json",
  "struct-field-names-as-array",
+ "test-log",
  "thiserror",
  "tl",
 ]
@@ -1946,6 +1969,17 @@ checksum = "633c1a546cee861a1a6d0dc69ebeca693bf4296661ba7852b9d21d159e0506df"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "test-log"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38f0c854faeb68a048f0f2dc410c5ddae3bf83854ef0e4977d58306a5edef50e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

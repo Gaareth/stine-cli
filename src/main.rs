@@ -118,7 +118,7 @@ fn get_credentials(matches: &ArgMatches) -> Config {
                 exit(-1);
             } else {
                 let cfg: Config = load_cfg(Path::new(CONFIG_PATH))
-                    .unwrap_or_else(|_| panic!("Failed loading config file from: {}", CONFIG_PATH));
+                    .unwrap_or_else(|_| panic!("Failed loading config file from: {CONFIG_PATH}"));
 
                 // config is empty
                 if cfg.username.is_empty() || cfg.password.is_empty() {
@@ -141,7 +141,7 @@ fn check_network_connection() -> bool {
 }
 
 
-fn authenticate(auth_cfg: &Config, language: Option<&Language>, check_network: bool) -> Stine {
+fn authenticate(auth_cfg: &Config, check_network: bool) -> Stine {
     if !auth_cfg.session.is_empty() && !auth_cfg.cnsc_cookie.is_empty() {
         println!("> Authenticating using session cookies");
         if let Ok(stine_session) = Stine::new_session(&auth_cfg.cnsc_cookie, &auth_cfg.session) {
@@ -304,6 +304,12 @@ fn get_command() -> Command {
                             .required(false)
                             .num_args(0..)
                             .value_parser(value_parser!(Semester))
+                    )
+                    .arg(
+                    Arg::new("grade-avg").long("grade-avg")
+                        .required(false)
+                        .action(ArgAction::SetTrue)
+                        .help("Show grade avg of the course. Potentially doubles requests to STINE.")
                     ),
 
                 Command::new("courses")
@@ -345,12 +351,12 @@ fn get_command() -> Command {
                         .help("STINE Language setting. Necessary for data comparison. \
                         If not specified, default of your stine account(if nothing saved) or the language saved for data comparison is used. \
                         Errors if either default or specified language is different from the saved language of the data"))
-                    .arg(arg!(--force_language)
+                    .arg(Arg::new("force_language").long("force-language")
                         .required(false)
                         .action(ArgAction::SetTrue)
                         .help("Overwrites the saved language, \
                         will delete old data and replace it with new data in the specified <LANGUAGE> using --language"))
-                    .arg(arg!(--dry)
+                    .arg(Arg::new("dry").long("dry-run")
                         .required(false)
                         .action(ArgAction::SetTrue).help("Only output to stdout.")),
 
@@ -400,7 +406,6 @@ fn main() {
 
     let mut stine: Stine = authenticate(
         &auth_cfg,
-        matches.get_one("language"),
         matches!(matches.subcommand_name(), Some("check")));
 
     println!("{}", "Successfully authenticated with Stine".bold().green());
@@ -413,27 +418,29 @@ fn main() {
                 .unwrap_or_default().cloned().collect();
             let semesters: Vec<SemesterStine> = semesters.iter().cloned().map(SemesterStine::from).collect();
 
+            // fetch semester results using NotLazy to directly use `GradeStats`
             let semester_results: Vec<SemesterResult> = if semesters.is_empty() {
-                stine.get_all_semester_results()
+                stine.get_all_semester_results(LazyLevel::NotLazy)
                     .unwrap_or_else(|_| { panic!("{}", "Request Error while trying to fetch all semester results".bright_red()) })
             } else {
                 println!("Selected Semesters: {semesters:#?}");
-                stine.get_semester_results(semesters)
+                stine.get_semester_results(semesters, LazyLevel::NotLazy)
                     .unwrap_or_else(|_| { panic!("{}", "Request Error while trying to fetch semester results".bright_red()) })
             };
 
             let mut table = Table::new();
-            table.add_row(row!["ID", "Name", "Final grade", "Credits", "Status"]);
+            table.add_row(row!["ID", "Name", "Final grade", "Credits", "Status", "Grade Average"]);
             for semester_result in semester_results {
-                for course_result in semester_result.courses {
-                    table.add_row(row!
-                    [
+                for mut course_result in semester_result.courses {
+                    table.add_row(row![
                             course_result.number,
                             course_result.name,
                             unwrap_option_or_generic(course_result.final_grade, "-"),
-                            course_result.credits.unwrap_or_default(),
-                            course_result.status
-                        ]);
+                            course_result.credits.as_ref().unwrap_or(&"-".to_string()),
+                            course_result.status,
+                            course_result.get_grade_stats(&stine).map_or_else(
+                            || "_".to_string(), |g| g.average.unwrap_or_default().to_string()),
+                    ]);
                 }
 
                 table.add_row(
@@ -460,8 +467,9 @@ fn main() {
                     // colorizing requires an extra request for every submodule
                     // so only do this if reducing of request is not wanted
                     let name = if !submatches.get_flag("reduce") {
-                        colorize_event_type(pending_submodule.name.to_string(),
-                                            pending_submodule.info(&stine).event_type)
+                        colorize_event_type(
+                            pending_submodule.name.to_string(),
+                            pending_submodule.info(&stine).event_type)
                     } else {
                         pending_submodule.name.to_string().white()
                     };

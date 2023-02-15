@@ -1,14 +1,15 @@
 use std::collections::HashMap;
 use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
 // use mapstruct::derive::{FromMap};
 use scraper::Html;
 use serde::{Deserialize, Serialize};
 use struct_field_names_as_array::FieldNamesAsArray;
-use crate::parse::{parse_group_appointments, utils};
+
 use crate::{parse, Stine};
 use crate::LazyLevel::NotLazy;
-
+use crate::parse::{parse_group_appointments, utils};
 
 // use crate::types::RegistrationPeriod::{ChangesAndCorrections, Early, FirstSemester, General, Late};
 
@@ -22,7 +23,7 @@ use crate::LazyLevel::NotLazy;
 pub struct ModuleCategory {
     pub name: String,
     pub modules: Vec<Module>,
-    pub orphan_submodules: Vec<SubModule>
+    pub orphan_submodules: Vec<SubModule>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,7 +52,6 @@ pub struct Module {
     pub credits: Option<String>,
     pub start_semester: Option<String>,
 
-
     pub attributes: HashMap<String, String>,
 }
 
@@ -74,7 +74,6 @@ pub struct CourseInfo {
 
     pub attributes: Option<HashMap<String, String>>,
 }
-
 
 
 /// # EventType
@@ -120,12 +119,17 @@ pub(crate) enum Lazy<T> {
     Unloaded,
 }
 
+
+/// Laziness levels
+/// FullLazy: only the main request to stine will be made
+/// NotLazy: will scrape the whole requested object
+/// this implementation might be really stupid -.-, but was made to reduce the calls to stine
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LazyLevel {
     /// No further API Calls are allowed
     FullLazy = 0,
-    /// Two API Calls to Stine are allowed
     OneLink = 1,
+    /// Two API Calls to Stine are allowed
     TwoLinks = 2,
     ThreeOrMoreLinks = 3,
 
@@ -145,7 +149,7 @@ pub(crate) struct LazyLoaded<T> {
     pub(crate) link: String,
 }
 
-impl <T> LazyLoaded<T> {
+impl<T> LazyLoaded<T> {
     pub fn unwrap(&self) -> &T {
         match &self.status {
             Lazy::Loaded(data) => data,
@@ -283,7 +287,7 @@ pub struct Appointment {
 }
 
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, FieldNamesAsArray)]
+#[derive(Debug, Clone, Serialize, Deserialize, FieldNamesAsArray)]
 pub struct CourseResult {
     pub number: String,
     pub name: String,
@@ -291,7 +295,55 @@ pub struct CourseResult {
     pub credits: Option<String>,
     pub status: String,
 
+    pub(crate) grade_stats: Option<LazyLoaded<GradeStats>>,
+}
 
-    // TODO:
-    // pub grade_average
+impl CourseResult {
+    pub fn get_grade_stats(&mut self, stine: &Stine) -> Option<GradeStats> {
+        if let Some(grade_stats) = &self.grade_stats {
+            match &grade_stats.status {
+                Lazy::Loaded(stats) => { Some(stats.clone()) }
+                Lazy::Unloaded => {
+                    let link = grade_stats.link.clone();
+
+                    let data = stine.get_grade_stats_for_course(&link);
+
+                    self.grade_stats = Some(LazyLoaded {
+                        status: Lazy::Loaded(data),
+                        link,
+                    });
+                    Some(self.grade_stats.as_ref().unwrap().unwrap().clone())
+                }
+            }
+        } else {
+            None
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GradeStats {
+    /// Map grade to number of people who got this grade
+    /// Should this be a map? Would loose f32 as key and the ordering :(
+    pub grade_map: Vec<(f32, i32)>,
+    pub average: Option<f32>,
+    pub available_results: Option<i32>,
+    /// Results with another grading system (GS) (I think)
+    pub differing_gs_results: Option<i32>,
+
+    /// rarely used
+    ///
+    /// *Weird Info*: this reason is called "anulliert" in stine in english??.
+    /// So one may ask, if reasons get manually inserted, or if the devs of stine didn't add an
+    /// english translation for this case
+    pub missing_canceled: Option<i32>,
+    /// rarely used
+    pub missing_excused: Option<i32>,
+
+    pub missing_ill: Option<i32>,
+    pub missing_without_reason: Option<i32>,
+    /// In case there is a here not used case. (reason, people missing for this reason)
+    /// will be in lowercase, if you think this is wrong, please raise an issue
+    pub missing_other: Vec<(String, i32)>,
 }

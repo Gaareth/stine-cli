@@ -26,5 +26,9 @@ dirs = "4.0.0"
 indicatif = "0.17.1"
 
 log = "0.4.17"
+test-log = "0.2.11"
 
 dotenv = "0.15.0"
+
+[dev-dependencies]
+env_logger = "0.10.0"

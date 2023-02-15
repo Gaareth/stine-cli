@@ -85,7 +85,7 @@ pub fn parse_arg_string(args_str: &str) -> Vec<String> {
 }
 
 /// Parses and processes scraped string.
-/// Removes trailing and leading, whitespace, new lines and replaces &nbsp; with a simple whitespace: " "
+/// Removes trailing and leading, whitespace, new lines?(does it?) and replaces &nbsp; with a simple whitespace: " "
 pub fn parse_string<S: AsRef<str>>(s: S) -> String {
     s.as_ref().replace("&nbsp;", " ").trim().to_string()
 }

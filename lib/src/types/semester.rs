@@ -5,6 +5,7 @@ use either::{Either, Left, Right};
 use serde::{Deserialize, Serialize};
 use crate::CourseResult;
 
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SemesterResult {
     pub semester: Semester,
