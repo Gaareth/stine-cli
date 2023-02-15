@@ -1,12 +1,12 @@
-use std::collections::HashMap;
+
 use std::str::FromStr;
 
 use log::{debug, error, trace};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
-use serde_json::to_string;
 
-use crate::{CourseResult, GradeStats, LazyLevel, parse, Semester, SemesterResult};
+
+use crate::{CourseResult, GradeStats, LazyLevel, Semester, SemesterResult};
 use crate::parse::utils::{get_next_selection, parse_float, parse_string, wrap_parse_float};
 use crate::Stine;
 use crate::types::event::{Lazy, LazyLoaded};
@@ -244,7 +244,7 @@ pub fn parse_course_results(html_content: String, stine: &Stine,
             let html_to_parse = Html::parse_fragment(&resp.text().unwrap());
 
             let semester_result = parse_semester_result(
-                &html_to_parse, &stine, semester_parsed, lazy_level);
+                &html_to_parse, stine, semester_parsed, lazy_level);
             semester_results.push(semester_result);
         } else {
             error!("Failed parsing Semester {semester_name}. => Skipping");

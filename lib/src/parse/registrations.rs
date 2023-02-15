@@ -109,11 +109,6 @@ pub fn parse_my_registrations(html_content: String, stine: &mut Stine, lazy: Laz
                               -> MyRegistrations {
     let html = Html::parse_fragment(&html_content);
 
-    let pending_submodules: Vec<SubModule> = vec![];
-    let accepted_submodules: Vec<SubModule> = vec![];
-    let rejected_submodules: Vec<SubModule> = vec![];
-    let accepted_modules: Vec<Module> = vec![];
-
     let pending_submodules = parse_pending_registrations(&html, stine, lazy);
     let accepted_submodules = parse_accepted_registrations(&html, stine, lazy);
     let rejected_submodules = parse_rejected_registrations(&html, stine, lazy);

@@ -158,13 +158,13 @@ fn parse_module_category_internal(
     module_category
 }
 
-pub fn search_module_by_id(html_content: String, stine: &Stine, module_id: String, lazy: LazyLevel) {
-    let html_fragment = Html::parse_fragment(&html_content);
-    let selector = Selector::parse("#contentSpacer_IE > ul > li").unwrap();
-    for category_element in html_fragment.select(&selector) {
-
-    }
-}
+// pub fn search_module_by_id(html_content: String, _stine: &Stine, _module_id: String, _lazy: LazyLevel) {
+//     let html_fragment = Html::parse_fragment(&html_content);
+//     let selector = Selector::parse("#contentSpacer_IE > ul > li").unwrap();
+//     for _category_element in html_fragment.select(&selector) {
+//
+//     }
+// }
 
 pub fn parse_modules(html_content: String, stine: &Stine, print_progress_bar: bool, lazy: LazyLevel)
     -> Vec<ModuleCategory> {
@@ -191,11 +191,11 @@ pub fn parse_modules(html_content: String, stine: &Stine, print_progress_bar: bo
     categories
 }
 
-pub fn parse_exams(html: &Html, stine: &Stine) -> Vec<Exam> {
+pub fn parse_exams(html: &Html, _stine: &Stine) -> Vec<Exam> {
     let mut exams: Vec<Exam> = Vec::new();
 
     let summary = if Stine::get_language_from_resp(html) == Language::German { "Modulabschlussprüfungen" } else { "Final module exams" };
-    let exam_sel = Selector::parse(&format!(".tb[summary=\"{}\"] > tbody > .tbdata", summary)).unwrap();
+    let exam_sel = Selector::parse(&format!(".tb[summary=\"{summary}\"] > tbody > .tbdata")).unwrap();
     let selection = html.select(&exam_sel);
 
     for row in selection {
@@ -617,7 +617,7 @@ pub fn  parse_sub_module(sub_module_element: ElementRef, stine: &Stine, lazy: La
 
     let course_number = name.split_whitespace().next().unwrap().to_string();
 
-    let mut course_info = CourseInfo {
+    let _course_info = CourseInfo {
         event_type: None,
         event_type_raw: None,
         instructors: None,
@@ -655,18 +655,18 @@ pub fn  parse_sub_module(sub_module_element: ElementRef, stine: &Stine, lazy: La
     sub_module
 }
 
-pub fn parse_course_info(html_fragment: &Html, stine: &Stine) -> CourseInfo {
+pub fn parse_course_info(html_fragment: &Html, _stine: &Stine) -> CourseInfo {
     let mut course_info = CourseInfo::default();
 
     let key_sel = Selector::parse("b").unwrap();
-    let keys: HashSet<String> = get_next_selection_html(&html_fragment, ".tbdata")
+    let keys: HashSet<String> = get_next_selection_html(html_fragment, ".tbdata")
         .unwrap().select(&key_sel)
         .into_iter().map(|s| s.inner_html().trim().to_owned()).collect();
 
     let mut latest_key: Option<&str> = None;
     let mut latest_value: String = String::new();
 
-    let text: Vec<&str> = get_next_selection_html(&html_fragment, ".tbdata")
+    let text: Vec<&str> = get_next_selection_html(html_fragment, ".tbdata")
         .unwrap().text().map(str::trim).collect();
     for line in text {
 

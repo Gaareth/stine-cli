@@ -63,7 +63,7 @@ impl Display for Semester {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let year: String = match &self.year {
             Left(year) => year.to_string(),
-            Right((year1, year2)) => format!("{}/{}", year1, year2),
+            Right((year1, year2)) => format!("{year1}/{year2}"),
         };
 
         write!(f, "{} {}", self.season, year)

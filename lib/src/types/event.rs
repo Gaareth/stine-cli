@@ -114,7 +114,7 @@ impl FromStr for EventType {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) enum Lazy<T> {
+pub enum Lazy<T> {
     Loaded(T),
     Unloaded,
 }
@@ -144,7 +144,7 @@ impl LazyLevel {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct LazyLoaded<T> {
+pub struct LazyLoaded<T> {
     pub(crate) status: Lazy<T>,
     pub(crate) link: String,
 }

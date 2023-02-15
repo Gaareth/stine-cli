@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::fs::File;
-use std::io;
-use std::io::copy;
-use std::path::Path;
+
+
+
+
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -456,7 +456,7 @@ impl Stine {
         let mut headers = HeaderMap::new();
 
         if let Some(cnsc) = &self.cnsc_cookie {
-            headers.insert(COOKIE, format!("cnsc={}", cnsc).parse().unwrap());
+            headers.insert(COOKIE, format!("cnsc={cnsc}").parse().unwrap());
         }
 
         Self::post_static(&self.client, url, headers, data)

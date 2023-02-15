@@ -98,7 +98,7 @@ pub fn pre_process_date_string(date_str: &str) -> Result<String, DateTimeParseEr
     let fixed_month = month_map.get(month.as_str());
     if let Some(fixed_month) = fixed_month {
         if dot_split.len() == 2 {
-            fixed_str = fixed_str.replace(month.as_str(), &format!("{}.", fixed_month));
+            fixed_str = fixed_str.replace(month.as_str(), &format!("{fixed_month}."));
         } else {
             fixed_str = fixed_str.replace(month.as_str(), fixed_month);
         }
@@ -129,14 +129,14 @@ fn parse_long_month_datetime(to_parse: &str) -> Result<DateTime<Utc>, PeriodPars
     let format_ger2 = "%a, %d.%m.%y %H:%M Uhr";
 
     let dt = try_format(s, format_eng);
-    if dt.is_ok() {
-        return Ok(dt.unwrap());
+    if let Ok(dt) = dt {
+        return Ok(dt);
     }
 
     let s = ger_weekday_to_eng_str(s);
     let dt = try_format(s.as_str(), format_ger);
-    if dt.is_ok() {
-        return Ok(dt.unwrap());
+     if let Ok(dt) = dt {
+        return Ok(dt);
     }
 
     Ok(try_format(s.as_str(), format_ger2).with_context(|| format!("Failed parsing date: {to_parse}|{s}"))?)

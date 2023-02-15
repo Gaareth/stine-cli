@@ -89,8 +89,3 @@ pub fn parse_arg_string(args_str: &str) -> Vec<String> {
 pub fn parse_string<S: AsRef<str>>(s: S) -> String {
     s.as_ref().replace("&nbsp;", " ").trim().to_string()
 }
-
-// TODO:
-pub fn remove_multi_whitespace() {
-    todo!()
-}
