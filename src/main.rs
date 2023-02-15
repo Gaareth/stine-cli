@@ -1,32 +1,28 @@
 extern crate core;
 
-mod notify;
-
 use std::error::Error;
-use std::{fs};
-
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
 
+use clap::{Arg, arg, ArgAction, ArgMatches, Args, command, Command, FromArgMatches, value_parser, ValueEnum};
+use clap_verbosity_flag::Verbosity;
+use colored::Colorize;
+use either::Either;
+use if_chain::if_chain;
+use log::info;
+use prettytable::{Cell, row, Row, Table};
+use serde::{Deserialize, Serialize};
+use simplelog::{ColorChoice, CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
+use thiserror::Error;
 
-use stine_rs::{Stine, SemesterResult, SemesterType, LazyLevel, EventType};
+use stine_rs::{EventType, LazyLevel, SemesterResult, SemesterType, Stine};
 use stine_rs::Semester as SemesterStine;
 
-use serde::{Deserialize, Serialize};
-use clap::{Arg, arg, ArgAction, ArgMatches, Args, command, Command, value_parser, ValueEnum, FromArgMatches};
-use clap_verbosity_flag::Verbosity;
-use prettytable::{row, Table};
-use colored::Colorize;
-
-use either::Either;
-
-use if_chain::if_chain;
-use log::{info};
-
-use simplelog::{ColorChoice, CombinedLogger, LevelFilter, WriteLogger, TermLogger, TerminalMode};
+mod notify;
 
 // reusing the config as env file ( ͠° ͟ʖ ͡°), don't know if good or bad ( ͡ʘ ͜ʖ ͡ʘ)
 const CONFIG_PATH: &str = "./.env";
@@ -41,8 +37,14 @@ struct Config {
 
 /// `Config` implements `Default`
 impl Default for Config {
-    fn default() -> Self { Self { username: "".to_string(), password: "".to_string(),
-        session: "".to_string(), cnsc_cookie: "".to_string() } }
+    fn default() -> Self {
+        Self {
+            username: "".to_string(),
+            password: "".to_string(),
+            session: "".to_string(),
+            cnsc_cookie: "".to_string(),
+        }
+    }
 }
 
 fn load_cfg(config_path: &Path) -> Result<Config, Box<dyn Error>> {
@@ -145,7 +147,7 @@ fn authenticate(auth_cfg: &Config, check_network: bool) -> Stine {
     if !auth_cfg.session.is_empty() && !auth_cfg.cnsc_cookie.is_empty() {
         println!("> Authenticating using session cookies");
         if let Ok(stine_session) = Stine::new_session(&auth_cfg.cnsc_cookie, &auth_cfg.session) {
-            return stine_session
+            return stine_session;
         } else {
             println!("{}", "Failed authenticating using session cookies.".red());
             println!("> Using credentials");
@@ -159,8 +161,8 @@ fn authenticate(auth_cfg: &Config, check_network: bool) -> Stine {
                 panic!("{}", "Can't reach Network".bright_red());
             } else {
                 eprintln!("{}. Error: {}",
-                       "Failed authenticating with Stine".bright_red(),
-                       error);
+                          "Failed authenticating with Stine".bright_red(),
+                          error);
                 exit(-1);
             }
         }
@@ -170,7 +172,7 @@ fn authenticate(auth_cfg: &Config, check_network: bool) -> Stine {
 #[derive(ValueEnum, Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 enum Language {
     German,
-    English
+    English,
 }
 
 impl From<Language> for stine_rs::Language {
@@ -200,10 +202,10 @@ pub struct Semester {
 
 impl From<SemesterStine> for Semester {
     fn from(semester: SemesterStine) -> Self {
-       Semester {
-           season: semester.season,
-           year: semester.year
-       }
+        Semester {
+            season: semester.season,
+            year: semester.year,
+        }
     }
 }
 
@@ -211,7 +213,7 @@ impl From<Semester> for SemesterStine {
     fn from(semester: Semester) -> Self {
         SemesterStine {
             season: semester.season,
-            year: semester.year
+            year: semester.year,
         }
     }
 }
@@ -226,6 +228,7 @@ impl clap::builder::ValueParserFactory for Semester {
 
 #[derive(Clone, Debug)]
 pub struct SemesterValueParser;
+
 impl clap::builder::TypedValueParser for SemesterValueParser {
     type Value = Semester;
 
@@ -239,11 +242,9 @@ impl clap::builder::TypedValueParser for SemesterValueParser {
 }
 
 fn convert_error(input: Result<SemesterStine, anyhow::Error>)
-    -> Result<SemesterStine, SemesterParseError> {
+                 -> Result<SemesterStine, SemesterParseError> {
     Ok(input?)
 }
-
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 enum SemesterParseError {
@@ -289,8 +290,8 @@ fn get_command() -> Command {
                 .action(ArgAction::SetTrue)
         )
         .arg(arg!(-l --language <LANGUAGE>)
-                 .required(false)
-                 .value_parser(value_parser!(Language))
+            .required(false)
+            .value_parser(value_parser!(Language))
             .help("Set Stine language. Changes output and language for your account")
         )
         .arg_required_else_help(true)
@@ -306,22 +307,19 @@ fn get_command() -> Command {
                             .value_parser(value_parser!(Semester))
                     )
                     .arg(
-                    Arg::new("grade-avg").long("grade-avg")
-                        .required(false)
-                        .action(ArgAction::SetTrue)
-                        .help("Show grade avg of the course. Potentially doubles requests to STINE.")
+                        Arg::new("grade-avg").long("grade-avg")
+                            .required(false)
+                            .action(ArgAction::SetTrue)
+                            .help("Show grade avg of the course. Potentially doubles requests to STINE.")
                     ),
-
                 Command::new("courses")
                     .about("Print all available courses")
                     .arg(Arg::new("force-refresh").short('f').long("force-refresh")),
-
                 Command::new("registration-status")
                     .about("Print registration status of all applied (sub)-modules")
                     .arg(arg!(-r --reduce).required(false).action(ArgAction::SetTrue)
                         .help("Reduce requests made to STINE. \
                         Removes colorized output and may result in slightly wrong lecture names")),
-
                 Command::new("notify")
                     .about("Send email about various events")
                     .arg(arg!(-e --events <EVENTS>)
@@ -359,7 +357,6 @@ fn get_command() -> Command {
                     .arg(Arg::new("dry").long("dry-run")
                         .required(false)
                         .action(ArgAction::SetTrue).help("Only output to stdout.")),
-
                 Command::new("check")
                     .about("Check your credentials and connection to Stine")
             ],
@@ -375,7 +372,7 @@ fn colorize_event_type(str: String, event_type: Option<EventType>) -> colored::C
         Some(EventType::Project) => str.red(),
         Some(EventType::Internship) => str.red(),
         Some(EventType::Seminar) => str.magenta(),
-        Some(EventType::Proseminar) | Some(EventType::GPSCourse)  => str.magenta(),
+        Some(EventType::Proseminar) | Some(EventType::GPSCourse) => str.magenta(),
         Some(EventType::Tutorial) => str.cyan(),
         _ => str.white(),
     }
@@ -413,35 +410,45 @@ fn main() {
 
     match matches.subcommand() {
         Some(("semester-results", sub_matches)) => {
-
+            let grade_avg = sub_matches.get_flag("grade-avg");
             let semesters: Vec<Semester> = sub_matches.get_many("semesters")
                 .unwrap_or_default().cloned().collect();
             let semesters: Vec<SemesterStine> = semesters.iter().cloned().map(SemesterStine::from).collect();
 
             // fetch semester results using NotLazy to directly use `GradeStats`
+            let lazy_level = if grade_avg { LazyLevel::NotLazy } else { LazyLevel::FullLazy };
             let semester_results: Vec<SemesterResult> = if semesters.is_empty() {
-                stine.get_all_semester_results(LazyLevel::NotLazy)
+                stine.get_all_semester_results(lazy_level)
                     .unwrap_or_else(|_| { panic!("{}", "Request Error while trying to fetch all semester results".bright_red()) })
             } else {
                 println!("Selected Semesters: {semesters:#?}");
-                stine.get_semester_results(semesters, LazyLevel::NotLazy)
+                stine.get_semester_results(semesters, lazy_level)
                     .unwrap_or_else(|_| { panic!("{}", "Request Error while trying to fetch semester results".bright_red()) })
             };
 
             let mut table = Table::new();
-            table.add_row(row!["ID", "Name", "Final grade", "Credits", "Status", "Grade Average"]);
+            let mut header_row = row!["ID", "Name", "Final grade", "Credits", "Status"];
+            if grade_avg {
+                header_row.add_cell(Cell::new("Grade Avg"))
+            }
+            table.add_row(header_row);
             for semester_result in semester_results {
                 for mut course_result in semester_result.courses {
-                    table.add_row(row![
+                    let mut row = row![
                             course_result.number,
                             course_result.name,
                             unwrap_option_or_generic(course_result.final_grade, "-"),
                             course_result.credits.as_ref().unwrap_or(&"-".to_string()),
                             course_result.status,
-                            course_result.get_grade_stats(&stine).map_or_else(
-                            || "_".to_string(), |g| g.average.unwrap_or_default().to_string()),
-                    ]);
+                    ];
+                    if grade_avg {
+                        let avg_formatted = course_result.get_grade_stats(&stine).map_or_else(
+                            || "_".to_string(), |g| g.average.unwrap_or_default().to_string());
+                        row.add_cell(Cell::new(&avg_formatted));
+                    }
+                    table.add_row(row);
                 }
+
 
                 table.add_row(
                     row![
@@ -457,7 +464,7 @@ fn main() {
             }
 
             table.printstd();
-        },
+        }
         Some(("registration-status", submatches)) => {
             if let Ok(registrations) = stine.get_my_registrations(LazyLevel::FullLazy) {
                 let mut table_pending = Table::new();
@@ -497,15 +504,18 @@ fn main() {
                     table_accepted_modules.add_row(row![module.name]);
                 }
 
-                table_pending.printstd();  println!();
-                table_accepted.printstd(); println!();
-                table_rejected.printstd(); println!();
+                table_pending.printstd();
+                println!();
+                table_accepted.printstd();
+                println!();
+                table_rejected.printstd();
+                println!();
                 table_accepted_modules.printstd();
             }
-        },
+        }
         Some(("notify", sub_matches)) => {
             notify::notify_command(sub_matches, &mut stine);
-        },
+        }
         Some(("check", _)) => {
             println!("{} {}",
                      stine_rs::BASE_URL.underline(),
