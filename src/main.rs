@@ -33,6 +33,8 @@ struct Config {
     password: String,
     session: String,
     cnsc_cookie: String,
+    /// Last usage of session cookies as unix timestamp
+    last_used: Option<i64>,
 }
 
 /// `Config` implements `Default`
@@ -43,6 +45,7 @@ impl Default for Config {
             password: "".to_string(),
             session: "".to_string(),
             cnsc_cookie: "".to_string(),
+            last_used: None,
         }
     }
 }
@@ -79,6 +82,8 @@ fn unwrap_option_or_generic<T, F>(option: Option<T>, fallback: F) -> Either<T, F
     }
 }
 
+/// Loads credentials for authentication
+/// If credentials are passed as cli arg, these are prioritized and updated in the returned Config
 fn get_credentials(matches: &ArgMatches) -> Config {
     let mut auth_cfg = Config::default();
 
@@ -94,9 +99,6 @@ fn get_credentials(matches: &ArgMatches) -> Config {
             //     println!("Passed credentials {}:{}, differ from config credentials {}:{}",
             //                      username, password,
             //                      auth_cfg.username, auth_cfg.password);
-
-
-
             // }
 
             if matches.get_flag("save_config") {
@@ -114,24 +116,19 @@ fn get_credentials(matches: &ArgMatches) -> Config {
 
             let use_auth_arg_msg = "Please use --username <USERNAME> and --password <PASSWORD> for authentication.";
 
-            if matches.get_flag("no_config") {
-                // no config flag provided, but also no username or password arg provided
+            let cfg: Config = load_cfg(Path::new(CONFIG_PATH))
+                .unwrap_or_else(|_| panic!("Failed loading config file from: {CONFIG_PATH}"));
+
+            // config is empty
+            if cfg.username.is_empty() || cfg.password.is_empty() {
                 eprintln!("{}", use_auth_arg_msg.red());
                 exit(-1);
             } else {
-                let cfg: Config = load_cfg(Path::new(CONFIG_PATH))
-                    .unwrap_or_else(|_| panic!("Failed loading config file from: {CONFIG_PATH}"));
-
-                // config is empty
-                if cfg.username.is_empty() || cfg.password.is_empty() {
-                    eprintln!("{}", use_auth_arg_msg.red());
-                    exit(-1);
-                } else {
-                    println!("Loading username and password from config file: [{}]",
-                        fs::canonicalize(CONFIG_PATH).unwrap().to_str().unwrap().underline());
-                    auth_cfg = cfg;
-                }
+                println!("Loading username and password from config file: [{}]",
+                    fs::canonicalize(CONFIG_PATH).unwrap().to_str().unwrap().underline());
+                auth_cfg = cfg;
             }
+
         }
     }
 
@@ -281,11 +278,6 @@ fn get_command() -> Command {
         )
         .arg(
             arg!(--save_config "Save username and password to .env file")
-                .required(false)
-                .action(ArgAction::SetTrue)
-        )
-        .arg(
-            arg!(--no_config "Don't use config file for authentication.")
                 .required(false)
                 .action(ArgAction::SetTrue)
         )
