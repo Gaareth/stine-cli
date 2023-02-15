@@ -1,8 +1,8 @@
-use std::{char, fs, io};
+use std::{fs, io};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::path::Path;
-use std::process::exit;
+
 
 use chrono::Utc;
 use clap::{ArgMatches, ValueEnum};
@@ -285,9 +285,6 @@ impl Changes {
     }
 }
 
-struct Notifications {
-    notifications: Vec<NotificationGroup>,
-}
 
 #[derive(Debug)]
 struct NotificationGroup {

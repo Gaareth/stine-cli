@@ -24,7 +24,7 @@ use colored::Colorize;
 use either::Either;
 
 use if_chain::if_chain;
-use log::{info, trace};
+use log::{info};
 
 use simplelog::{ColorChoice, CombinedLogger, LevelFilter, WriteLogger, TermLogger, TerminalMode};
 
@@ -125,7 +125,7 @@ fn get_credentials(matches: &ArgMatches) -> Config {
                     eprintln!("{}", use_auth_arg_msg.red());
                     exit(-1);
                 } else {
-                    println!("{} [{}]", "Loading username and password from config file:",
+                    println!("Loading username and password from config file: [{}]",
                         fs::canonicalize(CONFIG_PATH).unwrap().to_str().unwrap().underline());
                     auth_cfg = cfg;
                 }
