@@ -7,6 +7,7 @@ use std::io::Write;
 use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
+use chrono::{Datelike, DateTime, NaiveDateTime, Utc};
 
 use clap::{Arg, arg, ArgAction, ArgMatches, Args, command, Command, FromArgMatches, value_parser, ValueEnum};
 use clap_verbosity_flag::Verbosity;
@@ -64,11 +65,12 @@ fn load_cfg(config_path: &Path) -> Result<Config, Box<dyn Error>> {
     }
 }
 
-fn save_cfg(config_path: &Path, cfg: &Config) -> Result<(), Box<dyn Error>> {
+fn save_cfg(config_path: &Path, cfg: &mut Config) -> Result<(), Box<dyn Error>> {
     if !config_path.exists() {
         fs::create_dir_all(config_path.parent().unwrap_or_else(|| Path::new("")))?;
     }
 
+    cfg.last_used = Some(Utc::now().timestamp());
     let mut buffer = File::create(config_path)?;
     buffer.write_all(toml::to_string_pretty(&cfg)?.as_bytes())?;
     Ok(())
@@ -102,7 +104,7 @@ fn get_credentials(matches: &ArgMatches) -> Config {
             // }
 
             if matches.get_flag("save_config") {
-                save_cfg(Path::new(CONFIG_PATH), &auth_cfg).expect("Failed saving config");
+                save_cfg(Path::new(CONFIG_PATH), &mut auth_cfg).expect("Failed saving config");
                 println!("{} [{}]",
                  "> Saved credentials to config file".bright_green(),
                  fs::canonicalize(CONFIG_PATH).unwrap().to_str().unwrap().underline());
@@ -141,7 +143,13 @@ fn check_network_connection() -> bool {
 
 
 fn authenticate(auth_cfg: &Config, check_network: bool) -> Stine {
-    if !auth_cfg.session.is_empty() && !auth_cfg.cnsc_cookie.is_empty() {
+    let last_used_dt = DateTime::from_utc(NaiveDateTime::from_timestamp(
+        auth_cfg.last_used.unwrap_or(Utc::now().timestamp()), 0), Utc);
+    let max_timeout = 30;
+    let no_timeout = (Utc::now() - last_used_dt).num_minutes() < max_timeout;
+
+    if !auth_cfg.session.is_empty() && !auth_cfg.cnsc_cookie.is_empty()
+        && no_timeout {
         println!("> Authenticating using session cookies");
         if let Ok(stine_session) = Stine::new_session(&auth_cfg.cnsc_cookie, &auth_cfg.session) {
             return stine_session;
@@ -230,7 +238,7 @@ impl clap::builder::TypedValueParser for SemesterValueParser {
     type Value = Semester;
 
     fn parse_ref(
-        &self, _cmd: &clap::Command, _arg: Option<&clap::Arg>, value: &std::ffi::OsStr,
+        &self, _cmd: &Command, _arg: Option<&Arg>, value: &std::ffi::OsStr,
     ) -> Result<Self::Value, clap::Error> {
         let semester_result: Result<SemesterStine, SemesterParseError> = convert_error(
             SemesterStine::from_str(value.to_str().unwrap()));
@@ -523,7 +531,7 @@ fn main() {
 
 
     if matches.get_flag("save_config") {
-        save_cfg(Path::new(CONFIG_PATH), &auth_cfg).expect("Failed saving config");
+        save_cfg(Path::new(CONFIG_PATH), &mut auth_cfg).expect("Failed saving config");
         println!("{} [{}]",
                  "> Saved credentials and session to config file".bright_green(),
                  fs::canonicalize(CONFIG_PATH).unwrap().to_str().unwrap().underline());

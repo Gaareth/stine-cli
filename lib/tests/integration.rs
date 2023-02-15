@@ -1,11 +1,7 @@
 #![feature(let_chains)]
 
 use std::env;
-use std::path::PathBuf;
-
-use log::info;
-
-use stine_rs::{LazyLevel, Stine};
+use stine_rs::{Stine};
 
 fn auth() -> Stine {
     dotenv::from_path("../.env")
@@ -28,10 +24,7 @@ fn auth() -> Stine {
 
 
 mod test_auth {
-    use dirs::cache_dir;
-
     use stine_rs::Stine;
-
     use crate::auth;
 
     #[test]
@@ -93,7 +86,7 @@ mod test_functionality {
     fn test_output_log() {
         init_logger();
         info!("test");
-        let stine = auth();
+        auth();
     }
 
     #[test]
