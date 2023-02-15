@@ -617,18 +617,6 @@ pub fn  parse_sub_module(sub_module_element: ElementRef, stine: &Stine, lazy: La
 
     let course_number = name.split_whitespace().next().unwrap().to_string();
 
-    let _course_info = CourseInfo {
-        event_type: None,
-        event_type_raw: None,
-        instructors: None,
-        timetable_name: None,
-        hours_per_week: None,
-        credits: None,
-        language: None,
-        min_participants: None,
-        max_participants: None,
-        attributes: None
-    };
 
     let mut sub_module = SubModule {
         id: submodule_id,
@@ -648,7 +636,10 @@ pub fn  parse_sub_module(sub_module_element: ElementRef, stine: &Stine, lazy: La
 
     let html_fragment = Html::parse_fragment(&resp.text().unwrap());
 
-    parse_course_info(&html_fragment, stine);
+    sub_module.info = LazyLoaded {
+        status: Lazy::Loaded(parse_course_info(&html_fragment, stine)),
+        link: course_link.to_owned(),
+    };
 
     parse_tables(html_fragment, &mut sub_module, stine, lazy, course_link);
 

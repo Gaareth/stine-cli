@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::copy;
 
 
-use std::path::{Path};
+use std::path::{Path, PathBuf};
 use reqwest::blocking::Response;
 
 use serde::{Serialize};
@@ -41,18 +41,20 @@ pub fn save_json_file<P, T>(path: P, data: &T) -> Result<(), anyhow::Error>
     Ok(())
 }
 
-pub fn load_submodules(language: &Language) -> Result<HashMap<String, SubModule>, anyhow::Error> {
-    let cache_dir = dirs::cache_dir().unwrap().join("stine-rs");
+/// Default cache dir
+/// Located under /home/user/.cache/stine-rs on linux
+pub fn get_cache_dir() -> PathBuf {
+    dirs::cache_dir().unwrap().join("stine-rs")
+}
 
+pub fn load_submodules(language: &Language, cache_dir: &PathBuf) -> Result<HashMap<String, SubModule>, anyhow::Error> {
     fs::create_dir_all(&cache_dir)?;
     let path = cache_dir.join(format!("submodules_{}.json", language.to_string()));
     read_json_file(path)
 }
 
-pub fn save_submodules(submodules: &HashMap<String, SubModule>, language: &Language)
+pub fn save_submodules(submodules: &HashMap<String, SubModule>, language: &Language, cache_dir: &PathBuf)
     -> Result<(), anyhow::Error> {
-    let cache_dir = dirs::cache_dir().unwrap().join("stine-rs");
-
     fs::create_dir_all(&cache_dir)?;
     let path = cache_dir.join(format!("submodules_{}.json", language.to_string()));
 
@@ -63,17 +65,13 @@ pub fn save_submodules(submodules: &HashMap<String, SubModule>, language: &Langu
     save_json_file(path, &submodules)
 }
 
-pub fn load_modules(language: &Language) -> Result<HashMap<String, Module>, anyhow::Error> {
-    let cache_dir = dirs::cache_dir().unwrap().join("stine-rs");
-
+pub fn load_modules(language: &Language, cache_dir: &PathBuf) -> Result<HashMap<String, Module>, anyhow::Error> {
     fs::create_dir_all(&cache_dir)?;
     let path = cache_dir.join(format!("modules_{}.json", language.to_string()));
     read_json_file(path)
 }
 
-pub fn save_modules(modules: &HashMap<String, Module>, language: &Language) -> Result<(), anyhow::Error> {
-    let cache_dir = dirs::cache_dir().unwrap().join("stine-rs");
-
+pub fn save_modules(modules: &HashMap<String, Module>, language: &Language, cache_dir: &PathBuf) -> Result<(), anyhow::Error> {
     fs::create_dir_all(&cache_dir)?;
     let path = cache_dir.join(format!("modules_{}.json", language.to_string()));
 
@@ -84,17 +82,13 @@ pub fn save_modules(modules: &HashMap<String, Module>, language: &Language) -> R
     save_json_file(path, &modules)
 }
 
-pub fn load_module_categories(language: &Language) -> Result<Vec<ModuleCategory>, anyhow::Error> {
-    let cache_dir = dirs::cache_dir().unwrap().join("stine-rs");
-
+pub fn load_module_categories(language: &Language, cache_dir: &PathBuf) -> Result<Vec<ModuleCategory>, anyhow::Error> {
     fs::create_dir_all(&cache_dir)?;
     let path = cache_dir.join(format!("module_categories_{}.json", language.to_string()));
     read_json_file(path)
 }
 
-pub fn save_module_categories(categories: &[ModuleCategory], language: &Language) -> Result<(), anyhow::Error> {
-    let cache_dir = dirs::cache_dir().unwrap().join("stine-rs");
-
+pub fn save_module_categories(categories: &[ModuleCategory], language: &Language, cache_dir: &PathBuf) -> Result<(), anyhow::Error> {
     fs::create_dir_all(&cache_dir)?;
     let path = cache_dir.join(format!("module_categories_{}.json", language.to_string()));
 
@@ -121,7 +115,7 @@ fn save_to_file(resp: Response) -> Result<(), io::Error>{
             .unwrap_or("tmp.html");
 
         log::info!("file to download: '{}'", fname);
-        let fname = Path::new("/home/gareth/dev/Rust/webserver/stine-rs").join(fname);
+        let fname = Path::new("./").join(fname);
         log::info!("will be located under: '{:?}'", fname);
         File::create(fname)
     }.unwrap();
@@ -133,7 +127,7 @@ fn save_to_file(resp: Response) -> Result<(), io::Error>{
 #[cfg(test)]
 mod tests {
     use crate::{Language, Module, ModuleCategory};
-    use crate::utils::{save_module_categories, load_module_categories};
+    use crate::utils::{save_module_categories, load_module_categories, get_cache_dir};
 
 
     #[test]
@@ -157,8 +151,8 @@ mod tests {
             orphan_submodules: vec![]
         }];
 
-        assert!(save_module_categories(&c, &Language::English).is_ok());
-        assert!(load_module_categories(&Language::English).is_ok());
+        assert!(save_module_categories(&c, &Language::English, &get_cache_dir()).is_ok());
+        assert!(load_module_categories(&Language::English, &get_cache_dir()).is_ok());
 
     }
 }

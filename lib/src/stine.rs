@@ -1,8 +1,6 @@
 use std::collections::HashMap;
-
-
-
-
+use std::{fs, io};
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -55,6 +53,7 @@ pub enum StineError {
     UnknownError,
 }
 
+
 pub struct Stine {
     client: Client,
     pub session: Option<String>,
@@ -65,6 +64,8 @@ pub struct Stine {
     pub(crate) submod_map: Option<HashMap<String, SubModule>>,
     pub(crate) mod_map: Option<HashMap<String, Module>>,
     pub(crate) mod_categories: Option<Vec<ModuleCategory>>,
+    pub(crate) cache_dir: PathBuf,
+
 }
 
 fn build_client() -> Client {
@@ -73,6 +74,7 @@ fn build_client() -> Client {
         .timeout(Duration::from_secs(60))
         .build().expect("Error building Client")
 }
+
 
 impl Default for Stine {
     fn default() -> Self {
@@ -84,6 +86,7 @@ impl Default for Stine {
             submod_map: None,
             mod_map: None,
             mod_categories: None,
+            cache_dir: utils::get_cache_dir(),
         }
     }
 }
@@ -122,10 +125,17 @@ impl Stine {
     }
 
     /// Set language of stine results
-    pub fn with_language(&mut self, language: Language) -> &mut Stine {
+    pub fn with_language(mut self, language: Language) -> Stine {
         self.set_language(&language).unwrap();
         self.language = Some(language);
         self
+    }
+
+    /// Set cache dir of stine
+    pub fn with_cache_dir(mut self, dir: PathBuf) -> Result<Stine, io::Error> {
+        self.cache_dir = dir;
+        fs::create_dir_all(&self.cache_dir)?;
+        Ok(self)
     }
 
     fn is_authenticated(stine: &Self) -> Result<bool, StineError> {
@@ -275,7 +285,7 @@ impl Stine {
         let lang = self.get_language()?;
 
         if !force_reload {
-            return utils::load_module_categories(&lang);
+            return utils::load_module_categories(&lang, &self.cache_dir);
         }
 
         let resp = self.post_with_arg("REGISTRATION", vec![])?;
@@ -286,7 +296,7 @@ impl Stine {
         self.categories_to_maps(categories.clone());
         self.save_maps()?;
 
-        utils::save_module_categories(&categories, &lang)?;
+        utils::save_module_categories(&categories, &lang, &self.cache_dir)?;
 
         Ok(categories)
     }
@@ -535,16 +545,16 @@ impl Stine {
     }
 
     pub(crate) fn save_maps(&self) -> Result<(), anyhow::Error> {
-        log::debug!("saving maps");
+        log::debug!("[!] saving maps [!] to cache_dir: {}", &self.cache_dir.display());
         let lang = self.get_language()?;
 
         // maps can be empty or not initialized
         if let Some(mod_map) = self.mod_map.as_ref() {
-            save_modules(mod_map, &lang)?;
+            save_modules(mod_map, &lang, &self.cache_dir)?;
         }
 
         if let Some(submod_map) = self.submod_map.as_ref() {
-            save_submodules(submod_map, &lang)?;
+            save_submodules(submod_map, &lang, &self.cache_dir)?;
         }
 
         Ok(())
@@ -559,8 +569,8 @@ impl Stine {
 
         let lang = self.language.as_ref().unwrap();
 
-        self.submod_map = Some(utils::load_submodules(lang).unwrap_or_default());
-        self.mod_map = Some(utils::load_modules(lang).unwrap_or_default());
+        self.submod_map = Some(utils::load_submodules(lang, &self.cache_dir).unwrap_or_default());
+        self.mod_map = Some(utils::load_modules(lang, &self.cache_dir).unwrap_or_default());
 
         Ok(())
     }

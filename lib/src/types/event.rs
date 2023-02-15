@@ -56,7 +56,7 @@ pub struct Module {
 }
 
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// # CourseInfo
 /// Lazy Loaded Course info
 /// Note: `event_type` may not be parsed correctly (see [`EventType`] for supported types),
@@ -78,7 +78,7 @@ pub struct CourseInfo {
 
 /// # EventType
 /// Supported EventTypes for SubModules
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EventType {
     Lecture,
     Exercise,
@@ -113,7 +113,7 @@ impl FromStr for EventType {
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Lazy<T> {
     Loaded(T),
     Unloaded,
@@ -128,10 +128,11 @@ pub enum Lazy<T> {
 pub enum LazyLevel {
     /// No further API Calls are allowed
     FullLazy = 0,
-    OneLink = 1,
-    /// Two API Calls to Stine are allowed
-    TwoLinks = 2,
-    ThreeOrMoreLinks = 3,
+    // // unsure if this makes the interface too complex
+    // OneLink = 1,
+    // /// Two API Calls to Stine are allowed
+    // TwoLinks = 2,
+    // ThreeOrMoreLinks = 3,
 
     /// Will not prematurely? return data. Will make requests to Stine until full obj is scraped.
     NotLazy = 10,
@@ -143,7 +144,7 @@ impl LazyLevel {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LazyLoaded<T> {
     pub(crate) status: Lazy<T>,
     pub(crate) link: String,
@@ -218,6 +219,24 @@ impl SubModule {
         }
     }
 
+    pub fn info_loaded(&self) -> bool {
+        self.info.status != Lazy::Unloaded
+    }
+
+    pub fn appointments_loaded(&self) -> bool {
+        self.appointments.status != Lazy::Unloaded
+    }
+
+    pub fn groups_loaded(&self) -> bool {
+        self.groups.status != Lazy::Unloaded
+    }
+
+    pub fn fully_loaded(&self) -> bool {
+        self.info.status != Lazy::Unloaded
+            && self.appointments.status != Lazy::Unloaded
+            && self.groups.status != Lazy::Unloaded
+    }
+
     /// returns [`Appointment`]
     /// # Side effects:
     /// Loads [`CourseInfo`], [`Appointment`] and [`Group`]
@@ -249,7 +268,7 @@ impl SubModule {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Group {
     pub name: String,
     pub instructors: Vec<String>,
@@ -278,7 +297,7 @@ impl Group {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Appointment {
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,

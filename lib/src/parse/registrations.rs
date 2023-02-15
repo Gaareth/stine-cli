@@ -4,7 +4,7 @@ use scraper::Html;
 use crate::{LazyLevel, Module, SubModule};
 use crate::parse::{parse_module, parse_sub_module};
 use crate::parse::utils::{get_next_selection, parse_arg_string};
-use crate::stine::{Stine, MyRegistrations};
+use crate::stine::{MyRegistrations, Stine};
 
 fn parse_pending_registrations(html: &Html, stine: &mut Stine, lazy: LazyLevel) -> Vec<SubModule> {
     let pending_table = html.select(&Selector::parse("table").unwrap()).next().unwrap();
@@ -46,7 +46,6 @@ fn parse_modules_table(table: &ElementRef, stine: &mut Stine, lazy: LazyLevel) -
             if let Ok(submod) = stine.get_module_by_number(module_number, false, lazy).cloned() {
                 modules.push(submod);
             } else {
-
                 let sub_module_el = get_next_selection(row, ".dl-inner").unwrap();
                 let module = parse_module(sub_module_el, stine, lazy);
                 stine.add_module(module.clone());
@@ -80,20 +79,18 @@ fn parse_submodules_table(table: &ElementRef, stine: &mut Stine, lazy: LazyLevel
             let id = args[2].split("-N").nth(1).unwrap().to_owned();
 
             if let Ok(submod) = stine.get_submodule_by_id(id, false, lazy).cloned() {
-                // dbg!(&submod.name);
-
                 // for groups, the submodule with all groups has the same ID as an entry
                 // which is a specific group of the submodule
                 // => so we check if the name is different, and if it is the group name gets parsed separately
-                if submod.name == link_element.inner_html().trim() {
+                if submod.name == link_element.inner_html().trim() && (lazy.is_lazy() || submod.fully_loaded()) {
                     submodules.push(submod);
                     continue;
                 }
             }
 
+
             let sub_module_el = get_next_selection(row, ".dl-inner").unwrap();
             let submodule = parse_sub_module(sub_module_el, stine, lazy);
-            // dbg!(&submodule.name);
             stine.add_submodule(submodule.clone());
             log::debug!("Parsing submodule: {}", submodule.name);
 
@@ -121,6 +118,6 @@ pub fn parse_my_registrations(html_content: String, stine: &mut Stine, lazy: Laz
         pending_submodules,
         accepted_submodules,
         rejected_submodules,
-        accepted_modules
+        accepted_modules,
     }
 }
