@@ -600,6 +600,8 @@ fn load_data<T: DeserializeOwned>(path: &Path, file_name: &str,
                 // Clearing file contents, so there won't be any false difference due to language diffs.
                 fs::remove_file(file_path.clone())
                     .unwrap_or_else(|_| panic!("Failed deleting old comparison file {file_path:#?}"));
+                // return None, so the wrongly loaded data wont be used
+                return None
             }
         }
     } else if stine.get_language().expect("Failed fetching STINE language") != saved_stine_lang {
