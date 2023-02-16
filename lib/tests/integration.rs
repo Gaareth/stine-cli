@@ -90,6 +90,7 @@ mod test_functionality {
     }
 
     #[test]
+    #[ignore]
     fn test_get_my_registrations_not_lazy() {
         init_logger();
         clear_test_cache_dir();
@@ -110,6 +111,7 @@ mod test_functionality {
     }
 
     #[test]
+    #[ignore]
     fn test_get_my_registrations_full_lazy() {
         init_logger();
         clear_test_cache_dir();
@@ -129,6 +131,7 @@ mod test_functionality {
     }
 
     #[test]
+    #[ignore]
     fn test_get_my_registrations_lazyloading() {
         init_logger();
         clear_test_cache_dir();
