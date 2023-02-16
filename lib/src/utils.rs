@@ -48,14 +48,14 @@ pub fn get_cache_dir() -> PathBuf {
 }
 
 pub fn load_submodules(language: &Language, cache_dir: &PathBuf) -> Result<HashMap<String, SubModule>, anyhow::Error> {
-    fs::create_dir_all(&cache_dir)?;
+    fs::create_dir_all(cache_dir)?;
     let path = cache_dir.join(format!("submodules_{}.json", language.to_string()));
     read_json_file(path)
 }
 
 pub fn save_submodules(submodules: &HashMap<String, SubModule>, language: &Language, cache_dir: &PathBuf)
     -> Result<(), anyhow::Error> {
-    fs::create_dir_all(&cache_dir)?;
+    fs::create_dir_all(cache_dir)?;
     let path = cache_dir.join(format!("submodules_{}.json", language.to_string()));
 
     if !path.exists() {
@@ -66,13 +66,13 @@ pub fn save_submodules(submodules: &HashMap<String, SubModule>, language: &Langu
 }
 
 pub fn load_modules(language: &Language, cache_dir: &PathBuf) -> Result<HashMap<String, Module>, anyhow::Error> {
-    fs::create_dir_all(&cache_dir)?;
+    fs::create_dir_all(cache_dir)?;
     let path = cache_dir.join(format!("modules_{}.json", language.to_string()));
     read_json_file(path)
 }
 
 pub fn save_modules(modules: &HashMap<String, Module>, language: &Language, cache_dir: &PathBuf) -> Result<(), anyhow::Error> {
-    fs::create_dir_all(&cache_dir)?;
+    fs::create_dir_all(cache_dir)?;
     let path = cache_dir.join(format!("modules_{}.json", language.to_string()));
 
     if !path.exists() {
@@ -83,13 +83,13 @@ pub fn save_modules(modules: &HashMap<String, Module>, language: &Language, cach
 }
 
 pub fn load_module_categories(language: &Language, cache_dir: &PathBuf) -> Result<Vec<ModuleCategory>, anyhow::Error> {
-    fs::create_dir_all(&cache_dir)?;
+    fs::create_dir_all(cache_dir)?;
     let path = cache_dir.join(format!("module_categories_{}.json", language.to_string()));
     read_json_file(path)
 }
 
 pub fn save_module_categories(categories: &[ModuleCategory], language: &Language, cache_dir: &PathBuf) -> Result<(), anyhow::Error> {
-    fs::create_dir_all(&cache_dir)?;
+    fs::create_dir_all(cache_dir)?;
     let path = cache_dir.join(format!("module_categories_{}.json", language.to_string()));
 
     if !path.exists() {

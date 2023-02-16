@@ -1,13 +1,13 @@
-use std::{fs, io};
+use std::{env, fs, io};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
-use std::iter::Map;
+
 use std::path::Path;
-use std::vec::IntoIter;
+
 
 use chrono::Utc;
-use clap::{arg, ArgMatches, ValueEnum};
+use clap::{ArgMatches, ValueEnum};
 use if_chain::if_chain;
 use lazy_static::lazy_static;
 use lettre::{Message, SmtpTransport, Transport};
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
 
-use stine_rs::{CourseResult, Document, LazyLevel, Module, MyRegistrations, RegistrationPeriod, SemesterResult, Stine};
+use stine_rs::{CourseResult, Document, LazyLevel, MyRegistrations, RegistrationPeriod, SemesterResult, Stine};
 
 use crate::Language;
 
@@ -146,18 +146,19 @@ pub(crate) fn notify_command(sub_matches: &ArgMatches, stine: &mut Stine) {
 
     info!("Selected Events: {events:#?}");
 
-    let files_path = Path::new(NOTIFY_PATH);
+    // lots of unwraps in this line O_O
+    let files_path = env::current_exe().unwrap().parent().unwrap().join(NOTIFY_PATH);
 
     let notifications = events.iter().map(|event| {
         match event {
             NotifyEvent::ExamResult =>
-                { exam_update(stine, language, overwrite_lang, files_path, dry_run) }
+                { exam_update(stine, language, overwrite_lang, &files_path, dry_run) }
             NotifyEvent::RegistrationPeriods =>
-                { period_update(stine, files_path, dry_run) }
+                { period_update(stine, &files_path, dry_run) }
             NotifyEvent::Documents =>
-                { documents_update(stine, files_path, dry_run) }
+                { documents_update(stine, &files_path, dry_run) }
             NotifyEvent::RegistrationStatus =>
-                { registration_status_update(stine, language, overwrite_lang, files_path, dry_run) }
+                { registration_status_update(stine, language, overwrite_lang, &files_path, dry_run) }
         }
     });
 
@@ -657,6 +658,7 @@ fn send_email(subject: String, body: String,
         .build();
 
     // Send the email
+    // TODO: log panics
     match mailer.send(&email) {
         Ok(_) => println!("Email [{subject}] sent successfully!"),
         Err(e) => panic!("Could not send email: {e:?}"),
@@ -665,15 +667,14 @@ fn send_email(subject: String, body: String,
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::path::{Path, PathBuf};
+    use std::path::{PathBuf};
 
     use dotenv_codegen::dotenv;
     use lazy_static::lazy_static;
 
-    use stine_rs::{CourseResult, Document, RegistrationPeriod, Stine};
+    use stine_rs::{Document, RegistrationPeriod, Stine};
 
-    use crate::notify::{documents_update, exam_update, period_update, read_data, write_data};
+    use crate::notify::{documents_update, period_update, read_data, write_data};
 
     fn auth() -> Stine {
         Stine::new(dotenv!("username"), dotenv!("password"))

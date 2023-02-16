@@ -1,12 +1,13 @@
 extern crate core;
 
-use std::error::Error;
+
 use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
+use anyhow::Context;
 use chrono::{Datelike, DateTime, NaiveDateTime, Utc};
 
 use clap::{Arg, arg, ArgAction, ArgMatches, Args, command, Command, FromArgMatches, value_parser, ValueEnum};
@@ -15,7 +16,7 @@ use colored::Colorize;
 use either::Either;
 use if_chain::if_chain;
 use log::info;
-use prettytable::{Cell, row, Row, Table};
+use prettytable::{Cell, row, Table};
 use serde::{Deserialize, Serialize};
 use simplelog::{ColorChoice, CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
 use thiserror::Error;
@@ -51,7 +52,7 @@ impl Default for Config {
     }
 }
 
-fn load_cfg(config_path: &Path) -> Result<Config, Box<dyn Error>> {
+fn load_cfg(config_path: &Path) -> anyhow::Result<Config> {
     if config_path.exists() {
         let config: Config = toml::from_str(&fs::read_to_string(config_path)?)?;
 
@@ -65,7 +66,7 @@ fn load_cfg(config_path: &Path) -> Result<Config, Box<dyn Error>> {
     }
 }
 
-fn save_cfg(config_path: &Path, cfg: &mut Config) -> Result<(), Box<dyn Error>> {
+fn save_cfg(config_path: &Path, cfg: &mut Config) -> anyhow::Result<()> {
     if !config_path.exists() {
         fs::create_dir_all(config_path.parent().unwrap_or_else(|| Path::new("")))?;
     }
@@ -104,10 +105,12 @@ fn get_credentials(matches: &ArgMatches) -> Config {
             // }
 
             if matches.get_flag("save_config") {
-                save_cfg(Path::new(CONFIG_PATH), &mut auth_cfg).expect("Failed saving config");
+                let config_path = Path::new(CONFIG_PATH);
+                save_cfg(config_path, &mut auth_cfg)
+                .with_context(|| format!("Failed saving config to {}", config_path.display())).unwrap();
                 println!("{} [{}]",
                  "> Saved credentials to config file".bright_green(),
-                 fs::canonicalize(CONFIG_PATH).unwrap().to_str().unwrap().underline());
+                 config_path.display().to_string().underline());
             }
 
             auth_cfg.username = username.to_string();
@@ -116,7 +119,7 @@ fn get_credentials(matches: &ArgMatches) -> Config {
         } else {
             // if no auth arg passed, try to load them from config file
 
-            let use_auth_arg_msg = "Please use --username <USERNAME> and --password <PASSWORD> for authentication.";
+            let use_auth_arg_msg = "Please use --username <USERNAME> and --password <PASSWORD> for authentication. (.env file)";
 
             let cfg: Config = load_cfg(Path::new(CONFIG_PATH))
                 .unwrap_or_else(|_| panic!("Failed loading config file from: {CONFIG_PATH}"));
@@ -391,10 +394,12 @@ fn main() {
         .add_filter_allow_str("stine")
         .build();
 
+    let logfile = dirs::config_dir().unwrap().join("stine-cli.log");
     CombinedLogger::init(
         vec![
             TermLogger::new(log_level, log_config.clone(), TerminalMode::Mixed, ColorChoice::Auto),
-            WriteLogger::new(LevelFilter::Trace, log_config, File::create("stine-cli.log").unwrap()),
+            WriteLogger::new(LevelFilter::Trace, log_config, File::create(&logfile)
+                .with_context(|| format!("Failed writing to log file: {}", logfile.display())).unwrap()),
         ]
     ).unwrap();
 
@@ -532,10 +537,12 @@ fn main() {
 
 
     if matches.get_flag("save_config") {
-        save_cfg(Path::new(CONFIG_PATH), &mut auth_cfg).expect("Failed saving config");
+        let config_path = Path::new(CONFIG_PATH);
+        save_cfg(config_path, &mut auth_cfg)
+            .with_context(|| format!("Failed saving config to {}", config_path.display())).unwrap();
         println!("{} [{}]",
                  "> Saved credentials and session to config file".bright_green(),
-                 fs::canonicalize(CONFIG_PATH).unwrap().to_str().unwrap().underline());
+                 config_path.display().to_string().underline());
     }
 }
 
