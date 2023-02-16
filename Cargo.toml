@@ -9,7 +9,15 @@ description = "CLI Utility to show information about STINE"
 [workspace]
 members = ["lib"]
 
+[features]
+# If compiling on a system without OpenSSL installed, or cross-compiling for a different
+# architecture, enable this feature to compile OpenSSL as part of the build.
+# See https://docs.rs/openssl/#vendored for more.
+static_ssl = ['openssl/vendored']
+
 [dependencies]
+openssl = { version = '0.10', features = ["vendored"] }
+
 stine-rs = { path = "lib" }
 clap = { version = "4.0.7", features = ["derive", "cargo"] }
 clap-verbosity-flag = "2.0.0"
@@ -17,7 +25,7 @@ clap-verbosity-flag = "2.0.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.85"
 
-toml = "0.5"
+toml = "0.7.2"
 either = "1.8.0"
 if_chain = "1.0.2"
 
@@ -40,6 +48,8 @@ test-log = "0.2.11"
 
 dotenv = "0.15.0"
 dotenv_codegen = "0.15.0"
+
+dirs = "4.0.0"
 
 [dev-dependencies]
 env_logger = "0.10.0"
