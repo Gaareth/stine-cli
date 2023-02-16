@@ -22,6 +22,9 @@ Commands:
 ```
 For more info use `stine-cli help <subcommand>`
 
+### Notify Command
+The comparison files are currently written to ./notify
+
 ## TODO
 - Config file for Notifications
   - Email Auth

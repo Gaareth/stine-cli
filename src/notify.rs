@@ -243,7 +243,7 @@ fn registration_status_update(stine: &mut Stine,
                               arg_lang: Option<&Language>, overwrite_lang: bool,
                               path: &Path,
                               dry: bool) -> NotificationGroup {
-    let file_name = "my_registrations";
+    let file_name = "my_registrations.json";
 
     let mut changes: Vec<(String, Change<String>)> = vec![];
     let old: Option<DataWrapper<MyRegistrations>> = load_data(
