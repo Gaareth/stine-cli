@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter, write};
+use std::ops::Sub;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
@@ -26,7 +28,7 @@ pub struct ModuleCategory {
     pub orphan_submodules: Vec<SubModule>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Exam {
     pub name: String,
     pub datetime_from: Option<DateTime<Utc>>,
@@ -37,7 +39,7 @@ pub struct Exam {
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Module {
     /// Module-Number: InfB-Se1
     pub module_number: String,
@@ -55,6 +57,12 @@ pub struct Module {
     pub attributes: HashMap<String, String>,
 }
 
+
+impl Display for Module {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} - {}", self.module_number, self.name)
+    }
+}
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// # CourseInfo
@@ -74,7 +82,6 @@ pub struct CourseInfo {
 
     pub attributes: Option<HashMap<String, String>>,
 }
-
 
 /// # EventType
 /// Supported EventTypes for SubModules
@@ -169,7 +176,7 @@ impl<T> LazyLoaded<T> {
 }
 
 /// # SubModule
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct SubModule {
     pub id: String,
 
@@ -181,6 +188,12 @@ pub struct SubModule {
     pub(crate) info: LazyLoaded<CourseInfo>,
     pub(crate) appointments: LazyLoaded<Option<Vec<Appointment>>>,
     pub(crate) groups: LazyLoaded<Option<Vec<Group>>>,
+}
+
+impl Display for SubModule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} - {}", self.course_number, self.name)
+    }
 }
 
 impl SubModule {
@@ -267,6 +280,7 @@ impl SubModule {
         }
     }
 }
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Group {

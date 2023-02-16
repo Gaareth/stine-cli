@@ -10,6 +10,7 @@ use regex::Regex;
 use reqwest::blocking::Response;
 use reqwest::header::{CONTENT_TYPE, COOKIE, HeaderMap, ORIGIN, REFERER, REFRESH, SET_COOKIE};
 use scraper::Html;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{Document, GradeStats, LazyLevel, parse, utils};
@@ -577,8 +578,8 @@ impl Stine {
 }
 
 
-#[derive(Debug)]
 /// Holds submodules and modules of different registration statuses
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MyRegistrations {
     pub pending_submodules: Vec<SubModule>,
     pub accepted_submodules: Vec<SubModule>,

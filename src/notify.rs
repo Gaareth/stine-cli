@@ -1,11 +1,13 @@
 use std::{fs, io};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display};
+use std::hash::Hash;
+use std::iter::Map;
 use std::path::Path;
-
+use std::vec::IntoIter;
 
 use chrono::Utc;
-use clap::{ArgMatches, ValueEnum};
+use clap::{arg, ArgMatches, ValueEnum};
 use if_chain::if_chain;
 use lazy_static::lazy_static;
 use lettre::{Message, SmtpTransport, Transport};
@@ -15,8 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
 use thiserror::Error;
 
-use stine_rs::{CourseResult, Document, RegistrationPeriod, SemesterResult, Stine};
-use stine_rs::LazyLevel::FullLazy;
+use stine_rs::{CourseResult, Document, LazyLevel, Module, MyRegistrations, RegistrationPeriod, SemesterResult, Stine};
 
 use crate::Language;
 
@@ -29,6 +30,7 @@ pub enum NotifyEvent {
     ExamResult,
     RegistrationPeriods,
     Documents,
+    RegistrationStatus,
 }
 
 #[derive(Error, Debug)]
@@ -154,6 +156,8 @@ pub(crate) fn notify_command(sub_matches: &ArgMatches, stine: &mut Stine) {
                 { period_update(stine, files_path, dry_run) }
             NotifyEvent::Documents =>
                 { documents_update(stine, files_path, dry_run) }
+            NotifyEvent::RegistrationStatus =>
+                { registration_status_update(stine, language, overwrite_lang, files_path, dry_run) }
         }
     });
 
@@ -235,6 +239,80 @@ fn period_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup {
     NotificationGroup::new("A new registration period just started", notifications)
 }
 
+fn registration_status_update(stine: &mut Stine,
+                              arg_lang: Option<&Language>, overwrite_lang: bool,
+                              path: &Path,
+                              dry: bool) -> NotificationGroup {
+    let file_name = "my_registrations";
+
+    let mut changes: Vec<(String, Change<String>)> = vec![];
+    let old: Option<DataWrapper<MyRegistrations>> = load_data(
+        path, file_name, arg_lang, overwrite_lang, stine);
+    let current = stine.get_my_registrations(LazyLevel::FullLazy).unwrap();
+    let current_cloned = current.clone();
+
+    // data exists
+    if let Some(old) = old {
+        let old = old.data;
+
+        changes.extend(
+            calc_changes(old.accepted_modules, current.accepted_modules, "Accepted module registrations"));
+
+        changes.extend(
+            calc_changes(old.accepted_submodules, current.accepted_submodules, "Accepted registrations"));
+
+        changes.extend(
+            calc_changes(old.pending_submodules, current.pending_submodules, "Pending registrations"));
+
+        changes.extend(
+            calc_changes(old.rejected_submodules, current.rejected_submodules, "Rejected registrations"));
+        trace!("Calculated registration status changes");
+    } else {
+        warn!("No cache file found for registration status")
+    }
+
+    // save to file
+    save_dw(&stine, arg_lang, &path, dry, &file_name, current_cloned);
+
+    NotificationGroup::from_changes(Changes::new(changes), "Change in your registrations")
+}
+
+fn save_dw<T: Serialize>(stine: &&mut Stine, arg_lang: Option<&Language>, path: &&Path, dry: bool, file_name: &&str, data: T) {
+    if !dry {
+        let data = DataWrapper {
+            language: arg_lang.unwrap_or(
+                &Language::from(stine.get_language().expect("Failed fetching STINE language"))
+            ).clone(),
+            data,
+        };
+
+        write_data(&path.join(file_name), data);
+    } else {
+        warn!("Dry run: No write to cache file")
+    }
+}
+
+fn calc_changes<T: Display>(old: Vec<T>, current: Vec<T>, message: &'_ str)
+    -> impl Iterator<Item=(String, Change<String>)> + '_ {
+    let old_accept: Vec<String> = old.iter().map(T::to_string).collect();
+    let current_accept = current.iter().map(T::to_string).collect();
+    calc_symmetric_diff(old_accept.clone(),
+                        current_accept)
+        .into_iter().map(move |m| {
+        if old_accept.contains(&m) {
+            (format!("[Removed] {message}"), Change::new(m, String::new()))
+        } else {
+            (format!("[New] {message}"), Change::new(String::new(), m))
+        }
+    })
+}
+
+fn calc_symmetric_diff<T: Eq + Hash + Clone>(old: Vec<T>, new: Vec<T>) -> Vec<T> {
+    let old: HashSet<T> = old.into_iter().collect();
+    let new: HashSet<T> = new.into_iter().collect();
+    return old.symmetric_difference(&new).cloned().collect();
+}
+
 /// Checks for new stine documents
 fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup {
     trace!("Checking for new documents");
@@ -302,8 +380,8 @@ impl NotificationGroup {
 
     pub fn from_changes(changes: Changes, message: &str) -> Self {
         NotificationGroup::new(message, changes.changes.iter().map(|change| {
-                                   format!("[{}] ({} -> {}) \n", change.0, change.1.old, change.1.new)
-                               }).collect())
+            format!("[{}] ({} -> {}) \n", change.0, change.1.old, change.1.new)
+        }).collect())
     }
 }
 
@@ -318,7 +396,7 @@ fn exam_update(stine: &mut Stine,
     let data: Option<DataWrapper<HashMap<String, CourseResult>>> =
         load_data(path, file_name, arg_lang, overwrite_lang, stine);
 
-    let semester_results: Vec<SemesterResult> = stine.get_all_semester_results(FullLazy)
+    let semester_results: Vec<SemesterResult> = stine.get_all_semester_results(LazyLevel::FullLazy)
         .expect("Request Error while trying to fetch all semester results");
 
     let latest_map = map_semester_results_by_id(semester_results);
@@ -341,16 +419,7 @@ fn exam_update(stine: &mut Stine,
         // }
     }
 
-    if !dry {
-        let data = DataWrapper {
-            language: arg_lang.unwrap_or(
-                &Language::from(stine.get_language().expect("Failed fetching STINE language"))
-            ).clone(),
-            data: latest_map,
-        };
-
-        write_data(&path.join(file_name), data);
-    }
+    save_dw(&stine, arg_lang, &path, dry, &file_name, latest_map);
 
     NotificationGroup::from_changes(Changes::new(changes), "Update in course results")
 }
@@ -474,7 +543,11 @@ struct DataWrapper<T> {
 /// Loads data from file and checks for language inconsistencies.
 /// If the passed language is different from the language of the saved data, the --force_language
 /// has to be provided
-fn load_data<T: DeserializeOwned>(path: &Path, file_name: &str, passed_lang: Option<&Language>, overwrite_lang: bool, stine: &mut Stine)
+/// # Returns
+///     - None if data cant be read from file
+fn load_data<T: DeserializeOwned>(path: &Path, file_name: &str,
+                                  passed_lang: Option<&Language>, overwrite_lang: bool,
+                                  stine: &mut Stine)
                                   -> Option<DataWrapper<T>> {
     let file_path = path.join(file_name);
     let data: DataWrapper<T> = read_data(&file_path).ok()?;
