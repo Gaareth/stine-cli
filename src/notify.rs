@@ -127,7 +127,10 @@ pub(crate) fn notify_command(sub_matches: &ArgMatches, stine: &mut Stine) {
     let mut events: Vec<NotifyEvent> = sub_matches.get_many("events").unwrap_or_default().copied().collect();
 
     if events.is_empty() {
-        events = vec![NotifyEvent::ExamResult, NotifyEvent::RegistrationPeriods, NotifyEvent::Documents];
+        events = vec![NotifyEvent::ExamResult,
+                      NotifyEvent::RegistrationPeriods,
+                      NotifyEvent::Documents,
+                      NotifyEvent::RegistrationStatus];
     }
 
     let language: Option<&Language> = sub_matches.get_one::<Language>("language");

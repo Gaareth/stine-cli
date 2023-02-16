@@ -394,7 +394,7 @@ fn main() {
         .add_filter_allow_str("stine")
         .build();
 
-    let logfile = dirs::config_dir().unwrap().join("stine-cli.log");
+    let logfile = dirs::home_dir().unwrap().join("stine-cli.log");
     CombinedLogger::init(
         vec![
             TermLogger::new(log_level, log_config.clone(), TerminalMode::Mixed, ColorChoice::Auto),
