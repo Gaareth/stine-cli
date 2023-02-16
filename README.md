@@ -23,13 +23,38 @@ Commands:
 For more info use `stine-cli help <subcommand>`
 
 ### Notify Command
-The comparison files are currently written to ./notify
+`stine-cli notify` can notify you about certain events.
+Available Events:
+  - exam-result: Notify about changes of written exams, like status and grade
+  - registration-status: Changes in your registered modules, (e.g. accepted, rejected)
+  - documents: New STINE documents
+  - registration-periods: Start of new registration periods
+
+Currently, the way to use this command should be a scheduled execution of the command, e.g. as a cronjob
+Example:
+```stine-cli --save_config notify --email_address "<your email>" --email_password "<>" -events <>```
+Resulting in emails like:
+  ```
+    From: <your email>
+    To: <your email>
+    Subject: Stine Notifier - Update in course results
+    [Module name] (N/A -> 4.0)
+  ```
+
+In the future, there should be a set of configurable action, which map to the selected events.
+
+The comparison files are currently written relative to the executable to ./notify
 
 ## TODO
 - Config file for Notifications
   - Email Auth
   - Events
   - Actions
+    - Email
+    - stdout
+    - File
+    - System Notifications
+    - ...?
   - custom message
 
 
