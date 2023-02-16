@@ -2,7 +2,7 @@
 name = "stine-cli"
 version = "0.1.0"
 edition = "2021"
-description = "CLI Utilitly to show information about STINE"
+description = "CLI Utility to show information about STINE"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
