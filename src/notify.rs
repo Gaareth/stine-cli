@@ -239,6 +239,25 @@ fn period_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup {
     NotificationGroup::new("A new registration period just started", notifications)
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+struct MyRegistrationsSerialized {
+    pub pending_submodules: Vec<String>,
+    pub accepted_submodules: Vec<String>,
+    pub rejected_submodules: Vec<String>,
+    pub accepted_modules: Vec<String>,
+}
+
+impl From<MyRegistrations> for MyRegistrationsSerialized {
+    fn from(v: MyRegistrations) -> Self {
+        Self {
+            pending_submodules: to_string_vec(v.pending_submodules),
+            accepted_submodules: to_string_vec(v.accepted_submodules),
+            rejected_submodules: to_string_vec(v.rejected_submodules),
+            accepted_modules: to_string_vec(v.accepted_modules),
+        }
+    }
+}
+
 fn registration_status_update(stine: &mut Stine,
                               arg_lang: Option<&Language>, overwrite_lang: bool,
                               path: &Path,
@@ -246,11 +265,14 @@ fn registration_status_update(stine: &mut Stine,
     let file_name = "my_registrations.json";
 
     let mut changes: Vec<(String, Change<String>)> = vec![];
-    let old: Option<DataWrapper<MyRegistrations>> = load_data(
-        path, file_name, arg_lang, overwrite_lang, stine);
+
+
     let current = stine.get_my_registrations(LazyLevel::FullLazy).unwrap();
+    let current = MyRegistrationsSerialized::from(current);
     let current_cloned = current.clone();
 
+    let old: Option<DataWrapper<MyRegistrationsSerialized>> = load_data(
+        path, file_name, arg_lang, overwrite_lang, stine);
     // data exists
     if let Some(old) = old {
         let old = old.data;
@@ -292,14 +314,19 @@ fn save_dw<T: Serialize>(stine: &&mut Stine, arg_lang: Option<&Language>, path: 
     }
 }
 
-fn calc_changes<T: Display>(old: Vec<T>, current: Vec<T>, message: &'_ str)
+fn to_string_vec<T: ToString>(vec: Vec<T>) -> Vec<String> {
+    vec.iter().map(T::to_string).collect()
+}
+
+fn calc_changes(old: Vec<String>, current: Vec<String>, message: &'_ str)
     -> impl Iterator<Item=(String, Change<String>)> + '_ {
-    let old_accept: Vec<String> = old.iter().map(T::to_string).collect();
-    let current_accept = current.iter().map(T::to_string).collect();
-    calc_symmetric_diff(old_accept.clone(),
-                        current_accept)
+    // let old_accept: Vec<String> = old.iter().map(T::to_string).collect();
+    // let current_accept = current.iter().map(T::to_string).collect();
+
+    calc_symmetric_diff(old.clone(),
+                        current)
         .into_iter().map(move |m| {
-        if old_accept.contains(&m) {
+        if old.contains(&m) {
             (format!("[Removed] {message}"), Change::new(m, String::new()))
         } else {
             (format!("[New] {message}"), Change::new(String::new(), m))
