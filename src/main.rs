@@ -312,9 +312,10 @@ fn get_command() -> Command {
                             .action(ArgAction::SetTrue)
                             .help("Show grade avg of the course. Potentially doubles requests to STINE.")
                     ),
-                Command::new("courses")
-                    .about("Print all available courses")
-                    .arg(Arg::new("force-refresh").short('f').long("force-refresh")),
+                // TODO: impl courses subcommand
+                // Command::new("courses")
+                //     .about("Print all available courses")
+                //     .arg(Arg::new("force-refresh").short('f').long("force-refresh")),
                 Command::new("registration-status")
                     .about("Print registration status of all applied (sub)-modules")
                     .arg(arg!(-r --reduce).required(false).action(ArgAction::SetTrue)
