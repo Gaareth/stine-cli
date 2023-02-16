@@ -627,6 +627,7 @@ pub fn  parse_sub_module(sub_module_element: ElementRef, stine: &Stine, lazy: La
         groups: LazyLoaded::unloaded(course_link.to_owned())
     };
 
+    // If full lazy, dont allow further request and return what we got til now
     if lazy == LazyLevel::FullLazy {
         return sub_module
     }

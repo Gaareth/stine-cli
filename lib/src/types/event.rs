@@ -182,7 +182,7 @@ pub struct SubModule {
 
     /// Lehrveranstaltung-nummer (LV-Nummer): 62-...
     pub course_number: String,
-
+    /// LV-Nummer + Name. e.g.: 65-831 Optimierung ...
     pub name: String,
 
     pub(crate) info: LazyLoaded<CourseInfo>,
@@ -192,7 +192,7 @@ pub struct SubModule {
 
 impl Display for SubModule {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} - {}", self.course_number, self.name)
+        write!(f, "{}", self.name)
     }
 }
 
