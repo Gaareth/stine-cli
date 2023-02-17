@@ -1,6 +1,9 @@
 # stine-rs
 A library for STINE
 
+Right now I would not consider this library usable.
+The first think to change this, probably is a better the cache implementation
+
 ## Cache 
 To reduce requests to stine a cache is used.
 The default cache location depends on your OS, but is likely to be your default cache location (/home/users/.cache on linux)
@@ -19,6 +22,8 @@ The current implementation (LazyLoaded) is probably suboptimal and could be rewo
 
 - impl get_content function which returns just the html content
 - => then check if the language is correct
+
+- rework some of the parsing code
 
 ## Problems
 when parsing and checking submodule id, check if the trailing parameters are also the same, except for -N0, N1, etc..

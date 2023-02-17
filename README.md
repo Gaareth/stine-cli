@@ -1,8 +1,25 @@
 # stine-cli
 A CLI Utility for Uni Hamburg STINE.
 
+## Install
+#### Compile from source:
+- install [rust](https://www.rust-lang.org/learn/get-started) first
+```
+  git clone https://github.com/Gaareth/stine-cli.git
+  cd stine-cli
+  cargo build --release
+```
+then on linux: `cp target/release/stine-cli /usr/local/bin/`
+
+If you want to use this on e.g. a raspberry pi 
+1. use [cross](https://github.com/cross-rs/cross), 
+2. use the static_ssl feature: `cross build --features static_ssl --target armv7-unknown-linux-gnueabihf --release`
+in case you have problems building openssl
+
+[//]: # (#### Use prebuild binaries)
+
 ## Authenticate
-Use your username and password to login. Either use the cli argument (see help) or create a .env file next to executable.
+Use your username and password to login. Either use the cli argument (see help) or create a **.env file next to executable.**
 ``` 
 username = <your username>
 password = <your password>
