@@ -16,7 +16,8 @@ If you want to use this on e.g. a raspberry pi
 2. use the static_ssl feature: `cross build --features static_ssl --target armv7-unknown-linux-gnueabihf --release`
 in case you have problems building openssl
 
-[//]: # (#### Use prebuild binaries)
+#### Use prebuild binaries from the features tab
+although they might not be completely up-to-date
 
 ## Authenticate
 Use your username and password to login. Either use the cli argument (see help) or create a **.env file next to executable.**
