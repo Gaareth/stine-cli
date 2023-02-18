@@ -1,20 +1,21 @@
 extern crate core;
 
 
-use std::fs;
+use std::{env, fs};
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::str::FromStr;
+
 use anyhow::Context;
 use chrono::{Datelike, DateTime, NaiveDateTime, Utc};
-
 use clap::{Arg, arg, ArgAction, ArgMatches, Args, command, Command, FromArgMatches, value_parser, ValueEnum};
 use clap_verbosity_flag::Verbosity;
 use colored::Colorize;
 use either::Either;
 use if_chain::if_chain;
+use lazy_static::lazy_static;
 use log::info;
 use prettytable::{Cell, row, Table};
 use serde::{Deserialize, Serialize};
@@ -27,7 +28,9 @@ use stine_rs::Semester as SemesterStine;
 mod notify;
 
 // reusing the config as env file ( ͠° ͟ʖ ͡°), don't know if good or bad ( ͡ʘ ͜ʖ ͡ʘ)
-const CONFIG_PATH: &str = "./.env";
+lazy_static! {
+    static ref CONFIG_PATH: PathBuf = env::current_exe().unwrap().parent().unwrap().join(".env");
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
@@ -105,12 +108,11 @@ fn get_credentials(matches: &ArgMatches) -> Config {
             // }
 
             if matches.get_flag("save_config") {
-                let config_path = Path::new(CONFIG_PATH);
-                save_cfg(config_path, &mut auth_cfg)
-                .with_context(|| format!("Failed saving config to {}", config_path.display())).unwrap();
+                save_cfg(&CONFIG_PATH, &mut auth_cfg)
+                .with_context(|| format!("Failed saving config to {}", &CONFIG_PATH.display())).unwrap();
                 println!("{} [{}]",
                  "> Saved credentials to config file".bright_green(),
-                 config_path.display().to_string().underline());
+                 &CONFIG_PATH.display().to_string().underline());
             }
 
             auth_cfg.username = username.to_string();
@@ -121,16 +123,15 @@ fn get_credentials(matches: &ArgMatches) -> Config {
 
             let use_auth_arg_msg = "Please use --username <USERNAME> and --password <PASSWORD> for authentication. (.env file)";
 
-            let cfg: Config = load_cfg(Path::new(CONFIG_PATH))
-                .unwrap_or_else(|_| panic!("Failed loading config file from: {CONFIG_PATH}"));
+            let cfg: Config = load_cfg(&CONFIG_PATH)
+                .with_context(|| format!("Failed loading config file from: {}", &CONFIG_PATH.display())).unwrap();
 
             // config is empty
             if cfg.username.is_empty() || cfg.password.is_empty() {
                 eprintln!("{}", use_auth_arg_msg.red());
                 exit(-1);
             } else {
-                println!("Loading username and password from config file: [{}]",
-                    fs::canonicalize(CONFIG_PATH).unwrap().to_str().unwrap().underline());
+                println!("Loading username and password from config file: [{}]", &CONFIG_PATH.display());
                 auth_cfg = cfg;
             }
 
@@ -146,8 +147,13 @@ fn check_network_connection() -> bool {
 
 
 fn authenticate(auth_cfg: &Config, check_network: bool) -> Stine {
-    let last_used_dt = DateTime::from_utc(NaiveDateTime::from_timestamp(
-        auth_cfg.last_used.unwrap_or(Utc::now().timestamp()), 0), Utc);
+    let last_used_dt = DateTime::from_utc(
+        NaiveDateTime::from_timestamp_opt(
+            auth_cfg.last_used.unwrap_or(Utc::now().timestamp()), 0,
+        )
+            .unwrap_or(Utc::now().naive_utc()), Utc,
+    );
+
     let max_timeout = 30;
     let no_timeout = (Utc::now() - last_used_dt).num_minutes() < max_timeout;
 
@@ -537,12 +543,11 @@ fn main() {
 
 
     if matches.get_flag("save_config") {
-        let config_path = Path::new(CONFIG_PATH);
-        save_cfg(config_path, &mut auth_cfg)
-            .with_context(|| format!("Failed saving config to {}", config_path.display())).unwrap();
+        save_cfg(&CONFIG_PATH, &mut auth_cfg)
+            .with_context(|| format!("Failed saving config to {}", &CONFIG_PATH.display())).unwrap();
         println!("{} [{}]",
                  "> Saved credentials and session to config file".bright_green(),
-                 config_path.display().to_string().underline());
+                 &CONFIG_PATH.display().to_string().underline());
     }
 }
 
