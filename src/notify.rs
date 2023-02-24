@@ -171,10 +171,10 @@ pub(crate) fn notify_command(sub_matches: &ArgMatches, stine: &mut Stine) {
         }
 
         if dry_run {
-            println!("{}", group.message);
+            println!("[!] {}", group.message);
 
             for n in group.notifications {
-                print!("{n}");
+                println!("{n}");
             }
         } else {
             send_email(
@@ -191,7 +191,7 @@ fn period_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup {
         .expect("Request Error while trying to fetch registration periods");
 
     let file_name_path = path.join("send_period_notifications.json");
-    let mut send_periods: Vec<RegistrationPeriod> = read_data(&file_name_path).unwrap_or_default();
+    let mut send_periods: HashSet<RegistrationPeriod> = read_data(&file_name_path).unwrap_or_default();
 
     // let mut notifications: Vec<String> = vec![];
     // for reg_period in registration_periods {
@@ -227,7 +227,9 @@ fn period_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup {
 
         let new = datetime_now >= period.start && datetime_now <= period.end
             && !send_periods.contains(reg_period);
-        send_periods.push(*reg_period);
+        if new {
+            send_periods.insert(*reg_period);
+        }
         new
     });
 

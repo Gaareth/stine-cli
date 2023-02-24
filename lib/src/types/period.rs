@@ -1,9 +1,9 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use crate::parse::date::parse_period;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone, Hash)]
 pub struct Period {
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
@@ -12,12 +12,12 @@ pub struct Period {
 impl ToString for Period {
     fn to_string(&self) -> String {
         format!("{} - {}",
-                self.start.format("%Y-%m-%d %H:%M:%S"),
-                self.end.format("%Y-%m-%d %H:%M:%S"))
+                DateTime::<Local>::from(self.start).format("%Y-%m-%d %H:%M:%S"),
+                DateTime::<Local>::from(self.end).format("%Y-%m-%d %H:%M:%S"))
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Copy, Clone, Hash)]
 pub enum RegistrationPeriod {
     Early(Period),
     General(Period),
