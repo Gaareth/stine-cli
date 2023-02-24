@@ -2,7 +2,7 @@ extern crate core;
 
 
 use std::{env, fs};
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::exit;
@@ -121,7 +121,8 @@ fn get_credentials(matches: &ArgMatches) -> Config {
         } else {
             // if no auth arg passed, try to load them from config file
 
-            let use_auth_arg_msg = "Please use --username <USERNAME> and --password <PASSWORD> for authentication. (.env file)";
+            let use_auth_arg_msg = format!("Please use --username <USERNAME> and --password <PASSWORD> for authentication. ({} file)",
+                &CONFIG_PATH.display());
 
             let cfg: Config = load_cfg(&CONFIG_PATH)
                 .with_context(|| format!("Failed loading config file from: {}", &CONFIG_PATH.display())).unwrap();
@@ -400,16 +401,27 @@ fn main() {
         .add_filter_allow_str("stine")
         .build();
 
-    let logfile = dirs::home_dir().unwrap().join("stine-cli.log");
+    let log_path = dirs::home_dir().unwrap().join("stine-cli.log");
+
+    let log_file = OpenOptions::new()
+        .read(true)
+        .append(true)
+        .create(true)
+        .open(&log_path)
+        .with_context(|| format!("Failed writing to log file: {}", log_path.display())).unwrap();
+
+    dbg!(&log_path);
+    dbg!(&log_file);
+
     CombinedLogger::init(
         vec![
             TermLogger::new(log_level, log_config.clone(), TerminalMode::Mixed, ColorChoice::Auto),
-            WriteLogger::new(LevelFilter::Trace, log_config, File::create(&logfile)
-                .with_context(|| format!("Failed writing to log file: {}", logfile.display())).unwrap()),
+            WriteLogger::new(LevelFilter::Trace, log_config, log_file),
         ]
     ).unwrap();
 
     info!("LogLevel: [{log_level}]");
+    info!("Using log file at: [{}]", log_path.display());
 
     let mut auth_cfg = get_credentials(&matches);
 
