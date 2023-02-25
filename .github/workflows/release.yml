@@ -17,9 +17,11 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos-latest
             features: static_ssl
+            build_tool: cross
           - target: x86_64-pc-windows-gnu
             os: windows-latest
             features: static_ssl
+            build_tool: cross
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -30,6 +32,7 @@ jobs:
           bin: stine-cli
           # (optional) Target triple, default is host triple.
           target: ${{ matrix.target }}
+          build_tool: ${{ matrix.build_tool }}
           # (required) GitHub token for uploading assets to GitHub Releases.
           token: ${{ secrets.GITHUB_TOKEN }}
           features: ${{ matrix.features || '' }}
