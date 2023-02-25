@@ -9,7 +9,7 @@ use std::process::exit;
 use std::str::FromStr;
 
 use anyhow::Context;
-use chrono::{Datelike, DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use clap::{Arg, arg, ArgAction, ArgMatches, Args, command, Command, FromArgMatches, value_parser, ValueEnum};
 use clap_verbosity_flag::Verbosity;
 use colored::Colorize;
@@ -32,7 +32,7 @@ lazy_static! {
     static ref CONFIG_PATH: PathBuf = env::current_exe().unwrap().parent().unwrap().join(".stine-env");
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 struct Config {
     username: String,
     password: String,
@@ -42,18 +42,6 @@ struct Config {
     last_used: Option<i64>,
 }
 
-/// `Config` implements `Default`
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            username: "".to_string(),
-            password: "".to_string(),
-            session: "".to_string(),
-            cnsc_cookie: "".to_string(),
-            last_used: None,
-        }
-    }
-}
 
 fn load_cfg(config_path: &Path) -> anyhow::Result<Config> {
     if config_path.exists() {
