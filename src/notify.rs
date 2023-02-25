@@ -674,9 +674,11 @@ fn send_email(subject: String, body: String,
 
 #[cfg(test)]
 mod tests {
+    use std::env;
     use std::path::{PathBuf};
 
-    use dotenv_codegen::dotenv;
+    // use dotenv_codegen::dotenv;
+    use dotenv;
     use lazy_static::lazy_static;
 
     use stine_rs::{Document, RegistrationPeriod, Stine};
@@ -684,7 +686,9 @@ mod tests {
     use crate::notify::{documents_update, period_update, read_data, write_data};
 
     fn auth() -> Stine {
-        Stine::new(dotenv!("username"), dotenv!("password"))
+        dotenv::dotenv().ok();
+
+        Stine::new(&env::var("username").unwrap(), &env::var("password").unwrap())
             .expect("Failed authenticating with Stine")
     }
 

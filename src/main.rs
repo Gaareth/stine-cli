@@ -29,7 +29,7 @@ mod notify;
 
 // reusing the config as env file ( ͠° ͟ʖ ͡°), don't know if good or bad ( ͡ʘ ͜ʖ ͡ʘ)
 lazy_static! {
-    static ref CONFIG_PATH: PathBuf = env::current_exe().unwrap().parent().unwrap().join(".env");
+    static ref CONFIG_PATH: PathBuf = env::current_exe().unwrap().parent().unwrap().join(".stine-env");
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -59,14 +59,9 @@ fn load_cfg(config_path: &Path) -> anyhow::Result<Config> {
     if config_path.exists() {
         let config: Config = toml::from_str(&fs::read_to_string(config_path)?)?;
 
-        Ok(config)
-    } else {
-        fs::create_dir_all(config_path.parent().unwrap_or_else(|| Path::new("")))?;
-
-        let mut buffer = File::create(config_path)?;
-        buffer.write_all(toml::to_string_pretty(&Config::default())?.as_bytes())?;
-        Ok(Config::default())
+        return Ok(config)
     }
+    Ok(Config::default())
 }
 
 fn save_cfg(config_path: &Path, cfg: &mut Config) -> anyhow::Result<()> {
@@ -410,8 +405,6 @@ fn main() {
         .open(&log_path)
         .with_context(|| format!("Failed writing to log file: {}", log_path.display())).unwrap();
 
-    dbg!(&log_path);
-    dbg!(&log_file);
 
     CombinedLogger::init(
         vec![
