@@ -20,6 +20,7 @@ use log::info;
 use prettytable::{Cell, row, Table};
 use serde::{Deserialize, Serialize};
 use simplelog::{ColorChoice, CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
+use spinners::{Spinner, Spinners};
 use thiserror::Error;
 
 use stine_rs::{EventType, LazyLevel, SemesterResult, SemesterType, Stine};
@@ -47,7 +48,7 @@ fn load_cfg(config_path: &Path) -> anyhow::Result<Config> {
     if config_path.exists() {
         let config: Config = toml::from_str(&fs::read_to_string(config_path)?)?;
 
-        return Ok(config)
+        return Ok(config);
     }
     Ok(Config::default())
 }
@@ -420,6 +421,9 @@ fn main() {
                 .unwrap_or_default().cloned().collect();
             let semesters: Vec<SemesterStine> = semesters.iter().cloned().map(SemesterStine::from).collect();
 
+            let mut spinner = Spinner::new(Spinners::Dots,
+                                           "Fetching semester results".into());
+
             // fetch semester results using NotLazy to directly use `GradeStats`
             let lazy_level = if grade_avg { LazyLevel::NotLazy } else { LazyLevel::FullLazy };
             let semester_results: Vec<SemesterResult> = if semesters.is_empty() {
@@ -430,6 +434,7 @@ fn main() {
                 stine.get_semester_results(semesters, lazy_level)
                     .unwrap_or_else(|_| { panic!("{}", "Request Error while trying to fetch semester results".bright_red()) })
             };
+            spinner.stop();
 
             let mut table = Table::new();
             let mut header_row = row!["ID", "Name", "Final grade", "Credits", "Status"];
@@ -468,55 +473,62 @@ fn main() {
                 table.add_empty_row();
             }
 
+            println!();
             table.printstd();
         }
         Some(("registration-status", submatches)) => {
-            if let Ok(registrations) = stine.get_my_registrations(LazyLevel::FullLazy) {
-                let mut table_pending = Table::new();
-                table_pending.add_row(row![c => "--- pending ---".bold()]);
-                for mut pending_submodule in registrations.pending_submodules {
+            let mut spinner = Spinner::new(Spinners::Dots,
+                                           "Fetching registration status".into());
 
-                    // colorizing requires an extra request for every submodule
-                    // so only do this if reducing of request is not wanted
-                    let name = if !submatches.get_flag("reduce") {
-                        colorize_event_type(
-                            pending_submodule.name.to_string(),
-                            pending_submodule.info(&stine).event_type)
-                    } else {
-                        pending_submodule.name.to_string().white()
-                    };
+            let registrations = stine.get_my_registrations(LazyLevel::FullLazy).
+                context("Failed fetching stine registrations").unwrap();
+            spinner.stop();
 
-                    table_pending.add_row(row![
+            let mut table_pending = Table::new();
+            table_pending.add_row(row![c => "--- pending ---".bold()]);
+            for mut pending_submodule in registrations.pending_submodules {
+
+                // colorizing requires an extra request for every submodule
+                // so only do this if reducing of request is not wanted
+                let name = if !submatches.get_flag("reduce") {
+                    colorize_event_type(
+                        pending_submodule.name.to_string(),
+                        pending_submodule.info(&stine).event_type)
+                } else {
+                    pending_submodule.name.to_string().white()
+                };
+
+                table_pending.add_row(row![
                         name
                     ]);
-                }
-
-                let mut table_accepted = Table::new();
-                table_accepted.add_row(row![c => "--- accepted ---".green().bold()]);
-                for accepted_submodule in registrations.accepted_submodules {
-                    table_accepted.add_row(row![accepted_submodule.name]);
-                }
-
-                let mut table_rejected = Table::new();
-                table_rejected.add_row(row![c => "--- Rejected ---".red().bold()]);
-                for rejected_submodule in registrations.rejected_submodules {
-                    table_rejected.add_row(row![rejected_submodule.name]);
-                }
-
-                let mut table_accepted_modules = Table::new();
-                table_accepted_modules.add_row(row![c => "--- accepted modules ---".green().bold()]);
-                for module in registrations.accepted_modules {
-                    table_accepted_modules.add_row(row![module.name]);
-                }
-
-                table_pending.printstd();
-                println!();
-                table_accepted.printstd();
-                println!();
-                table_rejected.printstd();
-                println!();
-                table_accepted_modules.printstd();
             }
+
+            let mut table_accepted = Table::new();
+            table_accepted.add_row(row![c => "--- accepted ---".green().bold()]);
+            for accepted_submodule in registrations.accepted_submodules {
+                table_accepted.add_row(row![accepted_submodule.name]);
+            }
+
+            let mut table_rejected = Table::new();
+            table_rejected.add_row(row![c => "--- Rejected ---".red().bold()]);
+            for rejected_submodule in registrations.rejected_submodules {
+                table_rejected.add_row(row![rejected_submodule.name]);
+            }
+
+            let mut table_accepted_modules = Table::new();
+            table_accepted_modules.add_row(row![c => "--- accepted modules ---".green().bold()]);
+            for module in registrations.accepted_modules {
+                table_accepted_modules.add_row(row![module.name]);
+            }
+
+            println!();
+            table_pending.printstd();
+            println!();
+            table_accepted.printstd();
+            println!();
+            table_rejected.printstd();
+            println!();
+            table_accepted_modules.printstd();
         }
         Some(("notify", sub_matches)) => {
             notify::notify_command(sub_matches, &mut stine);
