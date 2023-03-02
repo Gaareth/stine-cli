@@ -1,7 +1,14 @@
 #![feature(let_chains)]
 
 use std::env;
-use stine_rs::{Stine};
+use std::fs;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::Instant;
+
+use lazy_static::lazy_static;
+
+use stine_rs::Stine;
 
 fn auth() -> Stine {
     dotenv::from_path("../.env")
@@ -25,6 +32,7 @@ fn auth() -> Stine {
 
 mod test_auth {
     use stine_rs::Stine;
+
     use crate::auth;
 
     #[test]
@@ -42,6 +50,32 @@ mod test_auth {
     }
 }
 
+lazy_static! {
+        static ref TEST_CACHE_DIR: PathBuf = dirs::cache_dir().unwrap().join("stine-rs").join("dev-test");
+        static ref STINE: Mutex<Stine> = Mutex::new(auth_test_cache());
+    }
+
+fn auth_test_cache() -> Stine {
+    auth().with_cache_dir(
+        TEST_CACHE_DIR.to_path_buf()
+    ).unwrap()
+}
+
+fn clear_test_cache_dir() {
+    fs::remove_dir_all(TEST_CACHE_DIR.to_path_buf()).unwrap();
+    fs::create_dir_all(TEST_CACHE_DIR.to_path_buf()).unwrap();
+}
+
+fn init_logger() {
+    let _ = env_logger::builder()
+        .filter_module("stine", log::LevelFilter::max())
+        .filter_module("integration", log::LevelFilter::max())
+        // print directly to stdout?
+        .is_test(false)
+        // Ignore errors initializing the logger if tests race to configure it
+        .try_init();
+}
+
 
 mod test_functionality {
     use std::fs;
@@ -54,33 +88,7 @@ mod test_functionality {
 
     use stine_rs::{Language, LazyLevel, Stine, SubModule};
 
-    use crate::auth;
-
-    lazy_static! {
-        static ref TEST_CACHE_DIR: PathBuf = dirs::cache_dir().unwrap().join("stine-rs").join("dev-test");
-        static ref STINE: Mutex<Stine> = Mutex::new(auth_test_cache());
-    }
-
-    fn auth_test_cache() -> Stine {
-        auth().with_cache_dir(
-            TEST_CACHE_DIR.to_path_buf()
-        ).unwrap()
-    }
-
-    fn clear_test_cache_dir() {
-        fs::remove_dir_all(TEST_CACHE_DIR.to_path_buf()).unwrap();
-        fs::create_dir_all(TEST_CACHE_DIR.to_path_buf()).unwrap();
-    }
-
-    fn init_logger() {
-        let _ = env_logger::builder()
-            .filter_module("stine", log::LevelFilter::max())
-            .filter_module("integration", log::LevelFilter::max())
-            // print directly to stdout?
-            .is_test(false)
-            // Ignore errors initializing the logger if tests race to configure it
-            .try_init();
-    }
+    use crate::{auth, auth_test_cache, clear_test_cache_dir, init_logger, STINE};
 
     #[test]
     fn test_output_log() {
@@ -211,4 +219,22 @@ mod test_functionality {
 //         true, false, true).unwrap();
 //     assert!(!module_categories.is_empty())
 // }
+}
+
+#[cfg(feature = "mobile")]
+mod test_functionality_mobile {
+    use crate::{init_logger, STINE};
+
+    #[test]
+    fn test_actor_type() {
+        init_logger();
+        STINE.lock().unwrap().get_actor_type().unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn test_student_events() {
+        init_logger();
+        STINE.lock().unwrap().get_student_events().unwrap();
+    }
 }

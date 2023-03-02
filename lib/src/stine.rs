@@ -1,14 +1,15 @@
-use std::collections::HashMap;
 use std::{fs, io};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
 use anyhow::anyhow;
+use dirs::cache_dir;
 use log::trace;
 use regex::Regex;
 use reqwest::blocking::Response;
-use reqwest::header::{CONTENT_TYPE, COOKIE, HeaderMap, ORIGIN, REFERER, REFRESH, SET_COOKIE};
+use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CONNECTION, CONTENT_LENGTH, CONTENT_TYPE, COOKIE, HeaderMap, HeaderValue, HOST, ORIGIN, REFERER, REFRESH, SET_COOKIE, USER_AGENT};
 use scraper::Html;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -21,7 +22,7 @@ use crate::parse::results::{parse_course_results, parse_grade_stats};
 use crate::RegistrationPeriod;
 use crate::utils::{save_modules, save_submodules};
 
-const API_URL: &str = "https://stine.uni-hamburg.de/scripts/mgrqispi.dll";
+pub(crate) const API_URL: &str = "https://www.stine.uni-hamburg.de/scripts/mgrqispi.dll";
 pub const BASE_URL: &str = "https://stine.uni-hamburg.de";
 
 type Client = reqwest::blocking::Client;
@@ -56,7 +57,7 @@ pub enum StineError {
 
 
 pub struct Stine {
-    client: Client,
+    pub(crate) client: Client,
     pub session: Option<String>,
     pub cnsc_cookie: Option<String>,
 
@@ -493,21 +494,10 @@ impl Stine {
             ("ARGUMENTS", args_str),
         ]);
 
-        log::debug!("Post to: {prgname} {args_str}");
+        log::debug!("POST to: {prgname} {args_str}");
         self.post(API_URL, params)
     }
 
-    /// Somehow this method does not working reliably authenticating????
-    /// Stine says "Zugang verweigert" but the same method as a post request works???
-    ///
-    // fn get_with_arg(&self, prgname: &str, args: Vec<&str>) -> reqwest::Result<Response> {
-    //     let mut url = format!("{API_URL}?APPNAME=CampusNet&PRGNAME={prgname}&ARGUMENTS=-N{},", self.session.clone().unwrap());
-    //     for arg in args {
-    //         url.push_str(&format!("{},", arg));
-    //     }
-    //     dbg!(&url);
-    //     self.client.get(url).send()
-    // }
 
     pub(crate) fn add_module(&mut self, module: Module) {
         if self.mod_map.is_none() {

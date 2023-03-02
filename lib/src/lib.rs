@@ -1,3 +1,4 @@
+#![feature(let_chains)]
 #![warn(
 clippy::all,
 clippy::cargo,
@@ -7,13 +8,14 @@ clippy::nursery,
 
 #![allow(clippy::use_self)]
 
-extern crate core;
-
 mod stine;
 
 mod types;
 mod parse;
 mod utils;
+
+#[cfg(feature = "mobile")]
+mod mobile;
 
 pub use stine::{*};
 pub use types::document::{*};
