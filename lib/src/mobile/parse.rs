@@ -11,8 +11,10 @@ fn get_flat_attrs(root: roxmltree::Node) -> HashMap<String, String> {
     for child in root.descendants() {
         // dbg!(child.tag_name().name());
         // dbg!(child.first_child());
-        if let Some(text_child) = child.first_child() && let Some(text) = text_child.text() {
-            flat_attrs.insert(child.tag_name().name().to_string(), text.to_string());
+        if let Some(text_child) = child.first_child() {
+            if let Some(text) = text_child.text() {
+                flat_attrs.insert(child.tag_name().name().to_string(), text.to_string());
+            }
         }
     }
     flat_attrs
@@ -70,6 +72,7 @@ pub fn parse_actor_type(input: String) -> Result<ActorType, anyhow::Error> {
 
 #[cfg(test)]
 mod tests_mobile {
+    use std::assert_eq;
     use crate::mobile::ActorType;
     use crate::mobile::parse::{parse_actor_type, parse_student_events};
 
@@ -136,6 +139,6 @@ mod tests_mobile {
         </mgns1:studentEvent>
     </mgns1:Message>"#.to_string());
 
-        assert_eq!(events.len(), 2);
+        assert_eq!(events.unwrap().len(), 2);
     }
 }
