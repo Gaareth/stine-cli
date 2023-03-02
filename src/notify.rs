@@ -363,8 +363,6 @@ fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup 
 
     let mut changes: Vec<(String, Change<String>)> = vec![];
     if let Ok(old_docs) = read_data(&file_path) {
-        dbg!(&old_docs);
-        dbg!(&current_documents);
         changes = calc_changes(old_docs, current_documents.clone(), "Document").collect();
         if changes.is_empty() {
             trace!("[!] No new documents found")
