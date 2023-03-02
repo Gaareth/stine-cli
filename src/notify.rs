@@ -272,6 +272,11 @@ fn registration_status_update(stine: &mut Stine,
 
     let mut changes: Vec<(String, Change<String>)> = vec![];
 
+    // probably necessary, but just in case, idk
+    if let Some(lang) = arg_lang {
+        stine.set_language(&stine_rs::Language::from(lang.clone()))
+            .expect("Failed changing language");
+    }
 
     let current = stine.get_my_registrations(LazyLevel::FullLazy).unwrap();
     let current = MyRegistrationsSerialized::from(current);
@@ -295,6 +300,7 @@ fn registration_status_update(stine: &mut Stine,
         changes.extend(
             calc_changes(old.rejected_submodules, current.rejected_submodules, "Rejected registrations"));
         trace!("Calculated registration status changes");
+        debug!("{:#?}", changes);
     } else {
         warn!("No cache file found for registration status")
     }
