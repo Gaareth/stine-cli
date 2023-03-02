@@ -324,8 +324,8 @@ fn to_string_vec<T: ToString>(vec: Vec<T>) -> Vec<String> {
     vec.iter().map(T::to_string).collect()
 }
 
-fn calc_changes(old: Vec<String>, current: Vec<String>, message: &'_ str)
-    -> impl Iterator<Item=(String, Change<String>)> + '_ {
+fn calc_changes<'a, T: Eq + Hash + Clone + ToString + 'a>(old: Vec<T>, current: Vec<T>, message: &'a str)
+    -> impl Iterator<Item=(String, Change<String>)> + 'a {
     // let old_accept: Vec<String> = old.iter().map(T::to_string).collect();
     // let current_accept = current.iter().map(T::to_string).collect();
 
@@ -333,9 +333,9 @@ fn calc_changes(old: Vec<String>, current: Vec<String>, message: &'_ str)
                         current)
         .into_iter().map(move |m| {
         if old.contains(&m) {
-            (format!("[Removed] {message}"), Change::new(m, String::new()))
+            (format!("[Removed] {message}"), Change::new(m.to_string(), String::new()))
         } else {
-            (format!("[New] {message}"), Change::new(String::new(), m))
+            (format!("[New] {message}"), Change::new(String::new(), m.to_string()))
         }
     })
 }
@@ -355,21 +355,12 @@ fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup 
     let file_name = "documents.json";
     let file_path = path.join(file_name);
 
-    let mut notifs = vec![];
+    let mut changes: Vec<(String, Change<String>)> = vec![];
     if let Ok(old_docs) = read_data(&file_path) {
-        let diffs: Vec<Document> = get_list_diffs(old_docs, current_documents.clone());
-        // if !diffs.is_empty() {
-        //     let mut body = String::from("New documents:");
-        //     body.push_str(&diffs.iter().map(|d| d.to_string()).collect::<Vec<String>>().join("\n\n "));
-        //
-        //     send_email(String::from("Stine Notifier - Documents update"), body, email_cfg)
-        // } else {
-        //     println!("[!] No new documents found")
-        // }
-        if !diffs.is_empty() {
-            notifs.push(
-                diffs.iter().map(|d| d.to_string()).collect::<Vec<String>>().join("\n\n "));
-        } else {
+        dbg!(&old_docs);
+        dbg!(&current_documents);
+        changes = calc_changes(old_docs, current_documents.clone(), "Document").collect();
+        if changes.is_empty() {
             trace!("[!] No new documents found")
         }
     } else {
@@ -381,7 +372,7 @@ fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup 
         write_data(&file_path, current_documents);
     }
 
-    NotificationGroup::new("There are new documents in your stine account", notifs)
+    NotificationGroup::from_changes(Changes::new(changes), "There are new documents in your stine account")
 }
 
 struct Changes {
@@ -472,34 +463,6 @@ fn map_semester_results_by_id(semester_results: Vec<SemesterResult>) -> HashMap<
 
     courses_map
 }
-
-/// Get first different List entries
-/// If the old list is empty, the changes are all the new elemements
-/// After the first entry matches (is the same) the functions thinks the rest of lists are identical
-/// Warning: Assumes that the lists are sorted by the date their entries were added
-fn get_list_diffs<T: PartialEq + Clone + Debug>(old_list: Vec<T>, new_list: Vec<T>) -> Vec<T> {
-    let mut diffs: Vec<T> = Vec::new();
-
-
-    // this should be okay, and will not lead to tons of changes when running the first time,
-    // because running the first time the file will not be created and this function wont be run
-    if old_list.is_empty() {
-        return new_list;
-    }
-
-    for (i, new_element) in new_list.iter().enumerate() {
-        if let Some(old_element) = old_list.get(i) {
-            if new_element != old_element {
-                diffs.push(new_element.clone());
-            } else {
-                // if the lists are sorted by date
-                break;
-            }
-        }
-    }
-    diffs
-}
-
 
 fn unwrap_or_na<T: Display>(value: Option<T>) -> String {
     if value.is_none() {
@@ -722,7 +685,19 @@ mod tests {
     fn test_document_change() {
         write_data(&TEST_PATH.join("documents.json"), Vec::<Document>::new());
         let document_notifs = documents_update(&STINE, &TEST_PATH, true);
+        dbg!(&document_notifs);
         assert!(!document_notifs.notifications.is_empty());
+    }
+
+    #[test]
+    fn test_document_one_added() {
+        let mut current_documents: Vec<Document> = STINE.get_documents().unwrap();
+        current_documents.remove(0);
+
+        write_data(&TEST_PATH.join("documents.json"), current_documents);
+        let document_notifs = documents_update(&STINE, &TEST_PATH, true);
+        dbg!(&document_notifs);
+        assert_eq!(document_notifs.notifications.len(), 1);
     }
 
     #[test]

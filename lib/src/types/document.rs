@@ -1,3 +1,4 @@
+use std::hash::{Hash, Hasher};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +10,16 @@ pub struct Document {
     pub status: Option<String>,
     pub download: String,
 }
+
+impl Hash for Document {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.datetime.hash(state);
+        self.status.hash(state);
+    }
+}
+
+impl Eq for Document {}
 
 impl PartialEq for Document {
     fn eq(&self, other: &Self) -> bool {
