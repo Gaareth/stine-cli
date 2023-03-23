@@ -498,6 +498,32 @@ impl Stine {
         self.post(API_URL, params)
     }
 
+    pub fn get_with_arg(&self, prg_name: &str, args: Vec<String>) -> Result<Response, reqwest::Error> {
+        let mut args = args;
+        args.insert(0, format!("-N{}", self.session.clone().unwrap()));
+
+        let args_str = &args.join(",");
+
+        let url = format!("{API_URL}?APPNAME=CampusNet&PRGNAME={prg_name}&ARGUMENTS={args_str}");
+
+        let mut headers = HeaderMap::new();
+        headers.insert(HOST, HeaderValue::from_str("www.stine.uni-hamburg.de").unwrap());
+        headers.insert(COOKIE, format!("cnsc={}", self.cnsc_cookie.as_ref().unwrap()).parse().unwrap());
+        headers.insert(USER_AGENT, HeaderValue::from_str("STiNE/202 CFNetwork/1390 Darwin/22.0.0").unwrap());
+
+
+        log::debug!("GET to: {url}, \nArguments: {args:#?}");
+        self.client.get(url).headers(headers).send()
+    }
+
+    pub fn get(&self, url: &str) -> reqwest::Result<Response> {
+        let mut headers = HeaderMap::new();
+
+        headers.insert(COOKIE, format!("cnsc={}", self.session.as_ref().unwrap()).parse().unwrap());
+
+        self.client.get(url).headers(headers).send()
+    }
+
 
     pub(crate) fn add_module(&mut self, module: Module) {
         if self.mod_map.is_none() {

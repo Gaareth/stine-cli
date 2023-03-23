@@ -31,7 +31,7 @@ impl PartialEq for Document {
 
 impl ToString for Document {
     fn to_string(&self) -> String {
-        format!("{}: {}. Status: {:#?}. Download-Link: {}",
-                self.name, self.datetime, self.status, self.download)
+        format!("{}: {}. Status: {:#?}",
+                self.name, self.datetime, self.status)
     }
 }

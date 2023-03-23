@@ -85,6 +85,7 @@ mod test_functionality {
 
     use lazy_static::lazy_static;
     use log::info;
+    use reqwest::header::CONTENT_TYPE;
 
     use stine_rs::{Language, LazyLevel, Stine, SubModule};
 
@@ -175,6 +176,16 @@ mod test_functionality {
 
         let documents = STINE.lock().unwrap().get_documents().unwrap();
         assert!(!documents.is_empty())
+    }
+
+    #[test]
+    fn test_download_document() {
+        init_logger();
+
+        let documents = STINE.lock().unwrap().get_documents().unwrap();
+        let d = documents.get(0).unwrap();
+        let response = STINE.lock().unwrap().get(&d.download).unwrap();
+        assert_eq!(response.headers().get(CONTENT_TYPE).unwrap().to_str().unwrap(), "application/pdf");
     }
 
     #[test]

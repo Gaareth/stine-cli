@@ -1,16 +1,17 @@
 use std::{env, fs, io};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
-
+use std::ops::Deref;
 use std::path::Path;
-
 
 use chrono::Utc;
 use clap::{ArgMatches, ValueEnum};
 use if_chain::if_chain;
 use lazy_static::lazy_static;
 use lettre::{Message, SmtpTransport, Transport};
+use lettre::message::{Attachment, MultiPart, MultiPartBuilder, SinglePart, SinglePartBuilder};
+use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
@@ -180,6 +181,7 @@ pub(crate) fn notify_command(sub_matches: &ArgMatches, stine: &mut Stine) {
             send_email(
                 format!("Stine Notifier - {}", group.message),
                 group.notifications.join("\n"),
+                group.attachments,
                 &email_cfg);
         }
     }
@@ -242,7 +244,7 @@ fn period_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup {
         write_data(&file_name_path, send_periods);
     }
 
-    NotificationGroup::new("A new registration period just started", notifications)
+    NotificationGroup::new("A new registration period just started", notifications, vec![])
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -289,16 +291,16 @@ fn registration_status_update(stine: &mut Stine,
         let old = old.data;
 
         changes.extend(
-            calc_changes(old.accepted_modules, current.accepted_modules, "Accepted module registrations"));
+            calc_format_changes(old.accepted_modules, current.accepted_modules, "Accepted module registrations"));
 
         changes.extend(
-            calc_changes(old.accepted_submodules, current.accepted_submodules, "Accepted registrations"));
+            calc_format_changes(old.accepted_submodules, current.accepted_submodules, "Accepted registrations"));
 
         changes.extend(
-            calc_changes(old.pending_submodules, current.pending_submodules, "Pending registrations"));
+            calc_format_changes(old.pending_submodules, current.pending_submodules, "Pending registrations"));
 
         changes.extend(
-            calc_changes(old.rejected_submodules, current.rejected_submodules, "Rejected registrations"));
+            calc_format_changes(old.rejected_submodules, current.rejected_submodules, "Rejected registrations"));
         trace!("Calculated registration status changes");
         debug!("{:#?}", changes);
     } else {
@@ -308,7 +310,7 @@ fn registration_status_update(stine: &mut Stine,
     // save to file
     save_dw(&stine, arg_lang, &path, dry, &file_name, current_cloned);
 
-    NotificationGroup::from_changes(Changes::new(changes), "Change in your registrations")
+    NotificationGroup::from_changes(Changes::new(changes), "Change in your registrations", vec![])
 }
 
 fn save_dw<T: Serialize>(stine: &&mut Stine, arg_lang: Option<&Language>, path: &&Path, dry: bool, file_name: &&str, data: T) {
@@ -330,20 +332,37 @@ fn to_string_vec<T: ToString>(vec: Vec<T>) -> Vec<String> {
     vec.iter().map(T::to_string).collect()
 }
 
-fn calc_changes<'a, T: Eq + Hash + Clone + ToString + 'a>(old: Vec<T>, current: Vec<T>, message: &'a str)
-    -> impl Iterator<Item=(String, Change<String>)> + 'a {
-    // let old_accept: Vec<String> = old.iter().map(T::to_string).collect();
-    // let current_accept = current.iter().map(T::to_string).collect();
+fn calc_changes<'a, T: Eq + Hash + Clone + 'a>(old: Vec<T>, current: Vec<T>)
+                                               -> (Vec<T>, Vec<T>) {
+    let mut new = vec![];
+    let mut removed = vec![];
 
     calc_symmetric_diff(old.clone(),
                         current)
-        .into_iter().map(move |m| {
+        .into_iter().for_each(|m| {
         if old.contains(&m) {
-            (format!("[Removed] {message}"), Change::new(m.to_string(), String::new()))
+            removed.push(m)
         } else {
-            (format!("[New] {message}"), Change::new(String::new(), m.to_string()))
+            new.push(m)
         }
-    })
+    });
+
+    (new, removed)
+}
+
+fn format_changes<'a, T: Eq + Hash + Clone + ToString + 'a>(new: Vec<T>, removed: Vec<T>, message: &'a str)
+                                                            -> impl Iterator<Item=(String, Change<String>)> + 'a {
+    let new_i = new.into_iter()
+        .map(move |t| (format!("[New] {message}"), Change::new(String::new(), t.to_string())));
+    let removed_i = removed.into_iter()
+        .map(move |t| (format!("[Removed] {message}"), Change::new(String::new(), t.to_string())));
+    new_i.chain(removed_i)
+}
+
+fn calc_format_changes<'a, T: Eq + Hash + Clone + ToString + 'a>(old: Vec<T>, current: Vec<T>, message: &'a str)
+                                                                 -> impl Iterator<Item=(String, Change<String>)> + 'a {
+    let (new, removed) = calc_changes(old, current);
+    format_changes(new, removed, message)
 }
 
 fn calc_symmetric_diff<T: Eq + Hash + Clone>(old: Vec<T>, new: Vec<T>) -> Vec<T> {
@@ -353,6 +372,7 @@ fn calc_symmetric_diff<T: Eq + Hash + Clone>(old: Vec<T>, new: Vec<T>) -> Vec<T>
 }
 
 /// Checks for new stine documents
+/// Tries to download and return the documents as email attachments
 fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup {
     trace!("Checking for new documents");
     let current_documents: Vec<Document> = stine.get_documents()
@@ -362,13 +382,31 @@ fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup 
     let file_path = path.join(file_name);
 
     let mut changes: Vec<(String, Change<String>)> = vec![];
-    if let Ok(old_docs) = read_data(&file_path) {
-        changes = calc_changes(old_docs, current_documents.clone(), "Document").collect();
+    let mut attachments = vec![];
+
+    if let Ok(old_docs) = read_data::<Vec<Document>>(&file_path) {
+        let (new, removed) = calc_changes(old_docs, current_documents.clone());
+        for new_doc in new.clone() {
+
+            if let Ok(content) = download_document(stine, &new_doc) {
+                let content_type = ContentType::parse("application/pdf").unwrap();
+                let attachment = Attachment::new(new_doc.name)
+                    .body(content, content_type);
+
+                attachments.push(attachment);
+            } else {
+                error!("Failed downloading document for [{}]", new_doc.name);
+            }
+
+        }
+        changes = format_changes(new, removed, "Documents").collect();
+
+
         if changes.is_empty() {
             trace!("[!] No new documents found")
         }
     } else {
-        trace!("documents.json not found. No diffs to output")
+        trace!("documents.json at: [{:#?}] not found. No diffs to output", &file_path);
     }
 
     if !dry {
@@ -376,7 +414,14 @@ fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup 
         write_data(&file_path, current_documents);
     }
 
-    NotificationGroup::from_changes(Changes::new(changes), "There are new documents in your stine account")
+    NotificationGroup::from_changes(Changes::new(changes),
+                                    "There are new documents in your stine account",
+                                    attachments)
+}
+
+fn download_document(stine: &Stine, doc: &Document) -> Result<Vec<u8>, reqwest::Error> {
+    let response = stine.get(&doc.download).unwrap();
+    Ok(response.bytes()?.as_ref().to_vec())
 }
 
 struct Changes {
@@ -396,20 +441,23 @@ impl Changes {
 struct NotificationGroup {
     message: String,
     notifications: Vec<String>,
+    attachments: Vec<SinglePart>,
 }
 
+
 impl NotificationGroup {
-    pub fn new(message: &str, notifications: Vec<String>) -> Self {
+    pub fn new(message: &str, notifications: Vec<String>, attachments: Vec<SinglePart>) -> Self {
         Self {
             message: message.to_string(),
             notifications,
+            attachments,
         }
     }
 
-    pub fn from_changes(changes: Changes, message: &str) -> Self {
+    pub fn from_changes(changes: Changes, message: &str, attachments: Vec<SinglePart>) -> Self {
         NotificationGroup::new(message, changes.changes.iter().map(|change| {
             format!("[{}] ({} -> {}) \n", change.0, change.1.old, change.1.new)
-        }).collect())
+        }).collect(), attachments)
     }
 }
 
@@ -449,7 +497,7 @@ fn exam_update(stine: &mut Stine,
 
     save_dw(&stine, arg_lang, &path, dry, &file_name, latest_map);
 
-    NotificationGroup::from_changes(Changes::new(changes), "Update in course results")
+    NotificationGroup::from_changes(Changes::new(changes), "Update in course results", vec![])
 }
 
 /// converts `SemesterResult` list to Map of `CourseResults` where
@@ -570,7 +618,7 @@ fn load_data<T: DeserializeOwned>(path: &Path, file_name: &str,
                 fs::remove_file(file_path.clone())
                     .unwrap_or_else(|_| panic!("Failed deleting old comparison file {file_path:#?}"));
                 // return None, so the wrongly loaded data won't be used
-                return None
+                return None;
             }
         }
     } else if stine.get_language().expect("Failed fetching STINE language") != saved_stine_lang {
@@ -610,17 +658,13 @@ fn write_data<T: Serialize>(file_path: &Path, data: T) {
 }
 
 
-fn send_email(subject: String, body: String,
+fn send_email(subject: String, body: String, attachments: Vec<SinglePart>,
               auth: &EmailAuthConfig) {
+
     let email_address = auth.clone().email_address;
     let password = auth.clone().password;
 
-    let email = Message::builder()
-        .from(email_address.parse().unwrap())
-        .to(email_address.parse().unwrap())
-        .subject(subject.clone())
-        .body(body)
-        .unwrap();
+    let email = build_email(&subject, body, &email_address, attachments);
 
     let creds = Credentials::new(email_address, password);
 
@@ -639,18 +683,37 @@ fn send_email(subject: String, body: String,
     }
 }
 
+fn build_email(subject: &str, body: String, email_address: &str, attachments: Vec<SinglePart>) -> Message {
+    let body = SinglePartBuilder::new().header(ContentType::TEXT_PLAIN).body(body);
+    let mut multipart = MultiPart::mixed()
+        .singlepart(body);
+
+    for attachment in attachments {
+        multipart = multipart.singlepart(attachment);
+    }
+
+    Message::builder()
+        .from(email_address.parse().unwrap())
+        .to(email_address.parse().unwrap())
+        .subject(subject)
+        .multipart(multipart)
+        .unwrap()
+}
+
 #[cfg(test)]
 mod tests {
-    use std::env;
-    use std::path::{PathBuf};
+    use std::{assert_eq, dbg, env};
+    use std::path::PathBuf;
 
     // use dotenv_codegen::dotenv;
     use dotenv;
     use lazy_static::lazy_static;
+    use lettre::message::Attachment;
+    use lettre::message::header::ContentType;
 
     use stine_rs::{Document, RegistrationPeriod, Stine};
 
-    use crate::notify::{documents_update, period_update, read_data, write_data};
+    use crate::notify::{build_email, documents_update, download_document, EmailAuthConfig, period_update, read_data, send_email, write_data};
 
     fn auth() -> Stine {
         dotenv::dotenv().ok();
@@ -709,5 +772,18 @@ mod tests {
         write_data(&TEST_PATH.join("send_period_notifications.json"), Vec::<RegistrationPeriod>::new());
         let reg_notifs = period_update(&STINE, &TEST_PATH, true);
         // assert!(!reg_notifs.notifications.is_empty()); // is probably empty, because depends on current date
+    }
+
+    #[test]
+    fn build_attachment_email() {
+        let documents = STINE.get_documents().unwrap();
+        let d = documents.get(0).unwrap();
+        let content = download_document(&STINE, d).unwrap();
+        let attachs = vec![
+            Attachment::new("aaa.pdf".to_string()).
+            body(content, ContentType::parse("application/pdf").unwrap())
+        ];
+
+        build_email("AAa", "New EMail".to_string(), "email@example.com", attachs);
     }
 }
