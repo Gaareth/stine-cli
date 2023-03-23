@@ -1,8 +1,7 @@
 use std::{env, fs, io};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display};
 use std::hash::Hash;
-use std::ops::Deref;
 use std::path::Path;
 
 use chrono::Utc;
@@ -10,7 +9,7 @@ use clap::{ArgMatches, ValueEnum};
 use if_chain::if_chain;
 use lazy_static::lazy_static;
 use lettre::{Message, SmtpTransport, Transport};
-use lettre::message::{Attachment, MultiPart, MultiPartBuilder, SinglePart, SinglePartBuilder};
+use lettre::message::{Attachment, MultiPart, SinglePart, SinglePartBuilder};
 use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use log::{debug, error, info, trace, warn};
@@ -705,15 +704,13 @@ mod tests {
     use std::{assert_eq, dbg, env};
     use std::path::PathBuf;
 
-    // use dotenv_codegen::dotenv;
-    use dotenv;
     use lazy_static::lazy_static;
     use lettre::message::Attachment;
     use lettre::message::header::ContentType;
 
     use stine_rs::{Document, RegistrationPeriod, Stine};
 
-    use crate::notify::{build_email, documents_update, download_document, EmailAuthConfig, period_update, read_data, send_email, write_data};
+    use crate::notify::{build_email, documents_update, download_document, period_update, read_data, write_data};
 
     fn auth() -> Stine {
         dotenv::dotenv().ok();
