@@ -61,7 +61,9 @@ Resulting in emails like:
 
 In the future, there should be a set of configurable action, which map to the selected events.
 
-The comparison files are currently written relative to the executable to ./notify
+The comparison files are currently written relative to the executable to ./notify.
+Logs are written to your $homedir. So e.g. /home/[user]/stine-cli.log on linux.
+
 
 ## TODO
 - Config file for Notifications
