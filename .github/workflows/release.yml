@@ -6,34 +6,22 @@ on:
 
 permissions:
   contents: write
-
+  
 jobs:
-  upload-assets:
+  release:
+    name: release ${{ matrix.target }}
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-#         - target: x86_64-apple-darwin
-#           os: macos-latest
-#           features: static_ssl
-#           build_tool: cross
-#         - target: x86_64-pc-windows-gnu
-#           os: windows-latest
-#           features: static_ssl
-#           build_tool: cross
-    runs-on: ${{ matrix.os }}
+        target: [x86_64-pc-windows-gnu, x86_64-unknown-linux-musl, x86_64-apple-darwin]
     steps:
-      - uses: actions/checkout@v3
-      - uses: taiki-e/upload-rust-binary-action@v1
+      - uses: actions/checkout@master
+      - name: Compile and release
+        uses: rust-build/rust-build.action@v1.4.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # (required) Comma-separated list of binary names (non-extension portion of filename) to build and upload.
-          # Note that glob pattern is not supported yet.
-          bin: stine-cli
-          # (optional) Target triple, default is host triple.
-          target: ${{ matrix.target }}
-          build_tool: ${{ matrix.build_tool }}
-          # (required) GitHub token for uploading assets to GitHub Releases.
-          token: ${{ secrets.GITHUB_TOKEN }}
-          features: ${{ matrix.features || '' }}
+          RUSTTARGET: ${{ matrix.target }}
+          EXTRA_FILES: "README.md LICENSE"
   
