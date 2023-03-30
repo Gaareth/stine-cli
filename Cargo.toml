@@ -16,8 +16,8 @@ members = ["lib"]
 static_ssl = ['openssl/vendored']
 
 [dependencies]
-openssl = { version = '0.10', features = ["vendored"] }
-
+openssl = { version = '0.10.48', features = ["vendored"] }
+time = "0.2.23"
 stine-rs = { path = "lib" }
 clap = { version = "4.0.7", features = ["derive", "cargo"] }
 clap-verbosity-flag = "2.0.0"
