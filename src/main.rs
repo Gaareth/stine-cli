@@ -105,7 +105,9 @@ fn get_credentials(matches: &ArgMatches) -> Config {
         } else {
             // if no auth arg passed, try to load them from config file
 
-            let use_auth_arg_msg = format!("Please use --username <USERNAME> and --password <PASSWORD> for authentication. ({} file)",
+            let use_auth_arg_msg = format!("Can't load credentials from config-file at: {} \
+            (Look at the README.md for slightly more info). \
+            Please use --username <USERNAME> and --password <PASSWORD> for authentication.",
                 &CONFIG_PATH.display());
 
             let cfg: Config = load_cfg(&CONFIG_PATH)
@@ -157,7 +159,7 @@ fn authenticate(auth_cfg: &Config, check_network: bool) -> Stine {
         Ok(stine) => stine,
         Err(error) => {
             if check_network && !check_network_connection() {
-                panic!("{}", "Can't reach Network".bright_red());
+                panic!("{}", "Can't reach network. Is your internet working? O-o".bright_red());
             } else {
                 eprintln!("{}. Error: {}",
                           "Failed authenticating with Stine".bright_red(),
@@ -430,7 +432,7 @@ fn main() {
                 stine.get_all_semester_results(lazy_level)
                     .unwrap_or_else(|_| { panic!("{}", "Request Error while trying to fetch all semester results".bright_red()) })
             } else {
-                println!("Selected Semesters: {semesters:#?}");
+                println!("Selected Semesters: {semesters:?}");
                 stine.get_semester_results(semesters, lazy_level)
                     .unwrap_or_else(|_| { panic!("{}", "Request Error while trying to fetch semester results".bright_red()) })
             };

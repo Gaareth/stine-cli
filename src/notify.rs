@@ -303,7 +303,9 @@ fn registration_status_update(stine: &mut Stine,
         trace!("Calculated registration status changes");
         debug!("{:#?}", changes);
     } else {
-        warn!("No cache file found for registration status")
+        let file_path = path.join(file_name);
+        warn!("This seems to be the first check for new registrations status updates [{} does not exist]. Therefore you won't receive any notifications.\
+        Only subsequent runs will results in changes and notifications.", file_path.display());
     }
 
     // save to file
@@ -386,7 +388,6 @@ fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup 
     if let Ok(old_docs) = read_data::<Vec<Document>>(&file_path) {
         let (new, removed) = calc_changes(old_docs, current_documents.clone());
         for new_doc in new.clone() {
-
             if let Ok(content) = download_document(stine, &new_doc) {
                 let content_type = ContentType::parse("application/pdf").unwrap();
                 let attachment = Attachment::new(new_doc.name)
@@ -396,7 +397,6 @@ fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup 
             } else {
                 error!("Failed downloading document for [{}]", new_doc.name);
             }
-
         }
         changes = format_changes(new, removed, "Documents").collect();
 
@@ -405,7 +405,10 @@ fn documents_update(stine: &Stine, path: &Path, dry: bool) -> NotificationGroup 
             trace!("[!] No new documents found")
         }
     } else {
-        trace!("documents.json at: [{:#?}] not found. No diffs to output", &file_path);
+        warn!("This seems to be the first check for new documents [{} does not exist]. Therefore you won't receive any notifications.\
+        Only subsequent runs will results in changes and notifications.", file_path.display());
+
+        // trace!("documents.json at: [{:#?}] not found. No diffs to output", &file_path);
     }
 
     if !dry {
@@ -477,7 +480,8 @@ fn exam_update(stine: &mut Stine,
     let latest_map = map_semester_results_by_id(semester_results);
 
     let mut changes = vec![];
-    if path.join(file_name).exists() {
+    let file_path = path.join(file_name);
+    if file_path.exists() {
         let data = data.unwrap();
         let old_map: HashMap<String, CourseResult> = data.data;
 
@@ -492,6 +496,9 @@ fn exam_update(stine: &mut Stine,
         // } else {
         //     println!("[!] No new exam updates found")
         // }
+    } else {
+        warn!("This seems to be the first check for new exams [{} does not exist]. Therefore you won't receive any notifications.\
+        Only subsequent runs will results in changes and notifications.", file_path.display())
     }
 
     save_dw(&stine, arg_lang, &path, dry, &file_name, latest_map);
@@ -659,7 +666,6 @@ fn write_data<T: Serialize>(file_path: &Path, data: T) {
 
 fn send_email(subject: String, body: String, attachments: Vec<SinglePart>,
               auth: &EmailAuthConfig) {
-
     let email_address = auth.clone().email_address;
     let password = auth.clone().password;
 
@@ -778,7 +784,7 @@ mod tests {
         let content = download_document(&STINE, d).unwrap();
         let attachs = vec![
             Attachment::new("aaa.pdf".to_string()).
-            body(content, ContentType::parse("application/pdf").unwrap())
+                body(content, ContentType::parse("application/pdf").unwrap())
         ];
 
         build_email("AAa", "New EMail".to_string(), "email@example.com", attachs);

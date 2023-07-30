@@ -17,10 +17,12 @@ If you want to use this on e.g. a raspberry pi
 in case you have problems building openssl
 
 #### Use prebuild binaries from the [releases](https://github.com/Gaareth/stine-cli/releases) tab
-Note: They might not be completely up-to-date. Hopefully I can fix the github workflow, so that binaries will be build automatically also for windows and macos for every new release
+Note: They might not be completely up-to-date. Hopefully I can fix the github workflow, so that binaries will be build 
+automatically also for windows and macos for every new release
 
 ## Authenticate
-Use your username and password to login. Either use the cli argument (see help) or create a **.env file next to executable.**
+Use your username and password to login. Either use the cli argument (see help) or create a **.stine-env file next to executable** 
+with the following contents:
 ``` 
 username = <your username>
 password = <your password>
