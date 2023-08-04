@@ -124,6 +124,13 @@ fn get_email_cfg(sub_matches: &ArgMatches) -> EmailAuthConfig {
 
 // TODO: rewrite using actions {EmailAction, PrintAction, SystemNotificationAction, ...}
 pub(crate) fn notify_command(sub_matches: &ArgMatches, stine: &mut Stine) {
+    let email_cfg = get_email_cfg(sub_matches);
+
+    if sub_matches.get_flag("send-test-email") {
+        send_email("Stine Notifier - Test Email".to_string(), "Stine Notifier works :)".to_string(),
+                   Vec::new(), &email_cfg);
+        return;
+    }
     let mut events: Vec<NotifyEvent> = sub_matches.get_many("events").unwrap_or_default().copied().collect();
 
     if events.is_empty() {
@@ -144,8 +151,6 @@ pub(crate) fn notify_command(sub_matches: &ArgMatches, stine: &mut Stine) {
         stine.set_language(&stine_rs::Language::from(lang.clone()))
             .expect("Failed changing language");
     }
-
-    let email_cfg = get_email_cfg(sub_matches);
 
     info!("Selected Events: {events:#?}");
 

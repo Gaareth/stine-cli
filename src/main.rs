@@ -335,11 +335,11 @@ fn get_command() -> Command {
                     .arg(arg!(--smtp_server <SMTP_SERVER>)
                         .required(false)
                         .value_parser(value_parser!(String))
-                        .help("SMTP Server Address. E.g.: smtp.gmail.com. Necessary if otherwise can't be determined"))
+                        .help("SMTP Server Address. E.g.: smtp.gmail.com. Required if can't be determined"))
                     .arg(arg!(--smtp_port <SMTP_PORT>)
                         .required(false)
                         .value_parser(value_parser!(u16))
-                        .help("SMTP Server PORT. E.g.: 587. Necessary if otherwise can't be determined"))
+                        .help("SMTP Server PORT. E.g.: 587. Required if can't be determined"))
                     .arg(arg!(-l --language <LANGUAGE>)
                         .required(false)
                         .value_parser(value_parser!(Language))
@@ -353,7 +353,10 @@ fn get_command() -> Command {
                         will delete old data and replace it with new data in the specified <LANGUAGE> using --language"))
                     .arg(Arg::new("dry").long("dry-run")
                         .required(false)
-                        .action(ArgAction::SetTrue).help("Only output to stdout.")),
+                        .action(ArgAction::SetTrue).help("Only output to stdout."))
+                    .arg(Arg::new("send-test-email").long("send-test-email")
+                        .required(false)
+                        .action(ArgAction::SetTrue).help("Send a test Email to see if your email credentials work.")),
                 Command::new("check")
                     .about("Check your credentials and connection to Stine")
             ],

@@ -78,7 +78,7 @@ Logs are written to your $homedir. So e.g. /home/[user]/stine-cli.log on linux.
     - System Notifications
     - ...?
   - custom message
-
+- Grade "b" as in "passed" in table output instead of "-"
 
 ## Contributing
 Contributions are welcome, as the current state of the code isn't the best D^:
