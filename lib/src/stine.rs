@@ -30,13 +30,13 @@ type Client = reqwest::blocking::Client;
 pub enum AuthError {
     #[error("Wrong password or username")]
     WrongCredentials,
-    #[error("Blocked access for `{0}` minutes, due to wrong credentials")]
+    #[error("Blocked access for {0} minutes, due to wrong credentials")]
     WrongCredentialsAccessDenied(i32),
     #[error("Access denied")]
     AccessDenied,
     #[error("Access denied: Due to too many failed login attempts, the account is temporarily locked")]
     TemporarilyLocked,
-    #[error("Request error: `{0}`")]
+    #[error("Request error: {0}")]
     RequestError(#[from] reqwest::Error),
     #[error("Timeout")]
     Timeout,
@@ -44,9 +44,9 @@ pub enum AuthError {
 
 #[derive(Error, Debug)]
 pub enum StineError {
-    #[error("Authentication Error: `{0}`")]
+    #[error("Authentication Error: {0}")]
     AuthError(#[from] AuthError),
-    #[error("Request error: `{0}`")]
+    #[error("Request error: {0}")]
     RequestError(#[from] reqwest::Error),
     #[error(transparent)]
     AnyError(#[from] anyhow::Error),
@@ -97,7 +97,7 @@ impl Stine {
     /// Language will be set to your current stine language.
     /// # Error
     ///
-    /// will error if there is an `AuthError`, like an expired session
+    /// will error if there is an AuthError, like an expired session
     pub fn new_session(cnsc_cookie: &str, session: &str) -> Result<Self, StineError> {
         let mut stine = Self {
             session: Some(String::from(session)),
@@ -115,7 +115,7 @@ impl Stine {
     /// Language will be set to your current stine language.
     /// # Error
     ///
-    /// will error if there is an `AuthError`, like wrong credentials
+    /// will error if there is an AuthError, like wrong credentials
     pub fn new(username: &str, password: &str) -> Result<Self, StineError> {
         let mut stine = Self::authenticate(Stine::default(), username, password)?;
         Self::is_authenticated(&stine)?;
@@ -172,7 +172,7 @@ impl Stine {
     }
 
     /// Checks and returns the actual error in case some error happens.
-    /// If no known error can be found returns [`AuthError::AnyError`] with the error message.
+    /// If no known error can be found returns [AuthError::AnyError] with the error message.
     fn on_auth_error(stine: Self, params: HashMap<&str, &str>, error: anyhow::Error) -> StineError {
         let response = Self::post_static(&stine.client, API_URL,
                                          HeaderMap::new(), params);
@@ -263,7 +263,7 @@ impl Stine {
 
     /// Returns the registration status of the applied modules
     /// # Arguments
-    ///     - lazy: Lazy loads certain info, reduces api calls and especially time to fetch the info
+    /// * lazy - Lazy loads certain info, reduces api calls and especially time to fetch the info
     pub fn get_my_registrations(&mut self, lazy: LazyLevel) -> Result<MyRegistrations, anyhow::Error> {
         let resp = self.post_with_arg("MYREGISTRATIONS", vec![])?;
         Ok(parse::registrations::parse_my_registrations(resp.text()?, self, lazy))
@@ -273,9 +273,9 @@ impl Stine {
     /// **Note**: By default, this information, will be loaded from a cache file, because
     /// **Warning**: scraping this info, can take several minutes
     /// # Arguments
-    ///     - force_reload: scrape all module from stine, without loading them from the cache file. *ONLY DO THIS SPARSELY PLEASE, TAKES MULTIPLE MINUTES*
-    ///     - print_progress_bar: prints a nice progress bar and more status info to the stdout.
-    ///     - lazy: Lazy loads certain info, reduces api calls and especially time to fetch the info
+    /// * force_reload - scrape all module from stine, without loading them from the cache file. *ONLY DO THIS SPARSELY PLEASE, TAKES MULTIPLE MINUTES*
+    /// * print_progress_bar - prints a nice progress bar and more status info to the stdout.
+    /// * lazy - Lazy loads certain info, reduces api calls and especially time to fetch the info
     ///
     /// # Errors
     ///
@@ -308,11 +308,11 @@ impl Stine {
         Ok(parse::parse_get_module_category(resp.text()?, self, category_name, lazy))
     }
 
-    /// Returns [`SubModule`] by specifying its id
+    /// Returns [SubModule] by specifying its id
     /// # Arguments:
-    ///     - id: the id of the submodule you want, example: 383403915405527
-    ///     - force_reload: this will parse and reload all modules you can apply for.
-    ///     - lazy: Lazy loads certain info, reduces api calls and especially time to fetch the info
+    /// * id - the id of the submodule you want, example: 383403915405527
+    /// * force_reload -  this will parse and reload all modules you can apply for.
+    /// * lazy - Lazy loads certain info, reduces api calls and especially time to fetch the info
 
     /// **Warning**: will take roughly a few minutes
     /// # Return:
@@ -333,16 +333,16 @@ impl Stine {
         };
     }
 
-    /// Returns [`Module`] by specifying its id
+    /// Returns [Module] by specifying its id
     /// # Arguments:
-    ///     - module_number: the module_number of the Module you want, example: InfB-SE 1
-    ///     - force_reload: this will parse and reload all modules you can apply for.
-    ///     - lazy: Lazy loads certain info, reduces api calls and especially time to fetch the info
+    /// * module_number - the module_number of the Module you want, example: InfB-SE 1
+    /// * force_reload - this will parse and reload all modules you can apply for.
+    /// * lazy - Lazy loads certain info, reduces api calls and especially time to fetch the info
 
     /// **Warning**: will take roughly a few minutes
     /// # Return:
     /// Returns a result of either the found submodule or an error why it cant be found.
-    /// It's possible that you have to retry calling this method wih `force_reload` enabled.
+    /// It's possible that you have to retry calling this method wih force_reload enabled.
     pub fn get_module_by_number(&mut self, module_number: String, force_reload: bool, lazy: LazyLevel)
                                 -> Result<&Module, anyhow::Error> {
         return if !force_reload {
@@ -359,10 +359,10 @@ impl Stine {
     }
     /// Returns exam and semester results of selected semesters
     ///
-    /// **Note**: If you don't need the `GradeStats` please use `LazyLevel::FullLazy` to reduce the calls to stine
+    /// **Note**: If you don't need the GradeStats please use LazyLevel::FullLazy to reduce the calls to stine
     /// # Arguments:
-    /// * `semesters`  - Semesters you want the exam and end results of
-    /// * `lazy_level` - Pass anything but `LazyLevel::FullLazy` to directly fetch `GradeStats` for the `CourseResult`s
+    /// * semesters  - Semesters you want the exam and end results of
+    /// * lazy_level - Pass anything but LazyLevel::FullLazy to directly fetch GradeStats for the CourseResults
     pub fn get_semester_results(&self, semesters: Vec<Semester>, lazy_level: LazyLevel)
                                 -> Result<Vec<SemesterResult>, reqwest::Error> {
         let resp = self.post_with_arg("COURSERESULTS", vec![])?;
@@ -372,9 +372,9 @@ impl Stine {
 
     /// Returns all exam and semester results
     ///
-    /// **Note**: If you don't need the `GradeStats` please use `LazyLevel::FullLazy` to reduce the calls to stine
+    /// **Note**: If you don't need the GradeStats please use LazyLevel::FullLazy to reduce the calls to stine
     /// # Arguments
-    /// * `lazy_level` - Pass anything but `LazyLevel::FullLazy` to directly fetch `GradeStats` for the `CourseResult`s
+    /// * lazy_level - Pass anything but LazyLevel::FullLazy to directly fetch GradeStats for the CourseResults
     pub fn get_all_semester_results(&self, lazy_level: LazyLevel) -> Result<Vec<SemesterResult>, reqwest::Error> {
         let resp = self.post_with_arg("COURSERESULTS", vec![])?;
 
@@ -385,10 +385,10 @@ impl Stine {
     }
 
 
-    /// Get `GradeStats` for specified exam and provided course_id
+    /// Get GradeStats for specified exam and provided course_id
     /// # Arguments
-    /// * `course_id` - the course id for the written exam, looks like this: 389187951081
-    /// * `attempt` - the attempt of the exam. 0 is all exams. 99 is the maximum
+    /// * course_id - the course id for the written exam, looks like this: 389187951081
+    /// * attempt - the attempt of the exam. 0 is all exams. 99 is the maximum
     pub fn get_grade_stats_for_exam(&self, course_id: &str, attempt: u8) -> GradeStats {
         let resp = self.post_with_arg("GRADEOVERVIEW",
                                       vec![
@@ -403,9 +403,9 @@ impl Stine {
         parse_grade_stats(&html_to_parse, course_id)
     }
 
-    /// Get `GradeStats` for a course
+    /// Get GradeStats for a course
     /// # Arguments
-    /// * `course_id` - the course id, looks like this: 38918795108
+    /// * course_id - the course id, looks like this: 38918795108
     pub fn get_grade_stats_for_course(&self, course_id: &str) -> GradeStats {
         self.get_grade_stats_for_exam(course_id, 0)
     }
@@ -425,7 +425,7 @@ impl Stine {
         Language::from_str(html_content.root_element().value().attr("lang").unwrap()).unwrap()
     }
 
-    /// Changes your stine language to [`Language`]
+    /// Changes your stine language to [Language]
     /// # Returns
     /// returns whether the operation was successful
     /// in case an request error was found, the error gets returned
@@ -477,8 +477,8 @@ impl Stine {
 
     /// Sends a POST requests to https://stine.uni-hamburg.de/scripts/mgrqispi.dll
     ///# Arguments
-    ///     - prgname: is the selected site, e.g.: EXTERNALPAGES
-    ///     - args: arguments added to parameters. Mostly in this format: -N<numbers>,-N<more numbers>.
+    /// * prgname - is the selected site, e.g.: EXTERNALPAGES
+    /// * args - arguments added to parameters. Mostly in this format: -N<numbers>,-N<more numbers>.
     ///     More here: https://www2.informatik.uni-hamburg.de/fachschaft/wiki/index.php/STiNE-Interna
     pub fn post_with_arg(&self, prgname: &str, mut args: Vec<String>) -> reqwest::Result<Response> {
         args.insert(0, format!("-N{}", self.session.clone().unwrap()));
