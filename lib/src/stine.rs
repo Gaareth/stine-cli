@@ -5,11 +5,10 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use anyhow::anyhow;
-use dirs::cache_dir;
 use log::trace;
 use regex::Regex;
 use reqwest::blocking::Response;
-use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CONNECTION, CONTENT_LENGTH, CONTENT_TYPE, COOKIE, HeaderMap, HeaderValue, HOST, ORIGIN, REFERER, REFRESH, SET_COOKIE, USER_AGENT};
+use reqwest::header::{CONTENT_TYPE, COOKIE, HeaderMap, HeaderValue, HOST, ORIGIN, REFERER, REFRESH, SET_COOKIE, USER_AGENT};
 use scraper::Html;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -22,7 +21,7 @@ use crate::parse::results::{parse_course_results, parse_grade_stats};
 use crate::RegistrationPeriod;
 use crate::utils::{save_modules, save_submodules};
 
-pub(crate) const API_URL: &str = "https://www.stine.uni-hamburg.de/scripts/mgrqispi.dll";
+pub const API_URL: &str = "https://www.stine.uni-hamburg.de/scripts/mgrqispi.dll";
 pub const BASE_URL: &str = "https://stine.uni-hamburg.de";
 
 type Client = reqwest::blocking::Client;
@@ -308,8 +307,6 @@ impl Stine {
         let resp = self.post_with_arg("REGISTRATION", vec![])?;
         Ok(parse::parse_get_module_category(resp.text()?, self, category_name, lazy))
     }
-
-    fn check_in_map() {}
 
     /// Returns [`SubModule`] by specifying its id
     /// # Arguments:

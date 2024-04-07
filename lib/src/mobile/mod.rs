@@ -1,13 +1,11 @@
-use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-use anyhow::anyhow;
-use hex::ToHex;
 use reqwest::blocking::Response;
 use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CONNECTION, CONTENT_LENGTH, COOKIE, HeaderMap, HeaderValue, HOST, USER_AGENT};
+use serde::{Deserialize, Serialize};
 
-use crate::{EventType, Language, Semester, Stine, stine};
-use stine::API_URL;
+use crate::{EventType, Semester, Stine, stine::API_URL};
 
 pub mod cipher;
 mod parse;
@@ -54,6 +52,52 @@ pub struct StudentEvent {
     pub info_present: Option<bool>,
 }
 
+// TODO: not every type should be string
+/// **Will change**
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
+#[serde(rename = "mgns1:studentExam")]
+#[serde(rename_all = "camelCase")]
+pub struct StudentExam {
+    #[serde(rename = "examID")]
+    pub exam_id: String,
+    pub exam_name: String,
+    pub context: String,
+    pub context_type: String,
+    pub subject: String,
+    pub begin_date: String,
+
+    pub due_date: String,
+
+    pub time_from: String,
+    pub time_to: String,
+    pub grade: String,
+    pub grade_description: String,
+
+    /// the instructor(s)
+    pub instructor_string: String,
+    pub status: String,
+    pub status_system: String,
+
+    #[serde(rename = "semesterID")]
+    pub semester_id: String,
+    pub semester_name: String,
+
+    // #[serde(flatten)]
+    // other: HashMap<String, Value>,
+}
+
+impl Display for StudentExam {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename = "mgns1:Message")]
+pub struct StudentExams {
+    #[serde(rename = "$value")]
+    pub exams: Vec<StudentExam>,
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ActorType {
@@ -113,6 +157,11 @@ impl Stine {
         self.client.get(url).headers(headers).send()
     }
 
+    pub fn get_exams_mobile(&self) -> Result<StudentExams, anyhow::Error> {
+        let xml_response = self.get_mobile("GETEXAMS",
+                                           vec!["000000", "STD"])?;
+        Ok(parse::parse_get_exams(xml_response.text()?)?)
+    }
 
     pub fn get_actor_type(&self) -> Result<ActorType, anyhow::Error> {
         // "1" for short results, e.g. "STD", "0" for results like "student",

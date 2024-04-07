@@ -18,7 +18,7 @@ static_ssl = ['openssl/vendored']
 [dependencies]
 openssl = { version = '0.10.55', features = ["vendored"] }
 time = "0.3.20"
-stine-rs = { path = "lib" }
+stine-rs = { path = "lib", features = ["mobile"] }
 clap = { version = "4.0.7", features = ["derive", "cargo"] }
 clap-verbosity-flag = "2.0.0"
 
@@ -30,7 +30,7 @@ either = "1.8.0"
 if_chain = "1.0.2"
 
 lettre = "0.10"
-chrono = "0.4.22"
+chrono = { version = "0.4.26", default-features = false, features = ["clock", "std", "wasmbind" ] }
 
 anyhow = "1.0.64"
 thiserror = "1.0.34"

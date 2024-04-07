@@ -108,7 +108,7 @@ impl FromStr for EventType {
             "übung" | "exercise" | "practical course/lab" => Ok(Self::Exercise),
             "projekt" | "project" => Ok(Self::Project),
             "praktikum" | "internship" => Ok(Self::Internship),
-            "seminar" | "seminar" => Ok(Self::Seminar),
+            "seminar" => Ok(Self::Seminar),
             "proseminar" | "introductory seminar" => Ok(Self::Proseminar),
             "tutorium" | "tutorial" => Ok(Self::Tutorial),
             "ringvorlesung" | "lecture series" => Ok(Self::LectureSeries),

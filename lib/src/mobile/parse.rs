@@ -4,7 +4,7 @@ use std::str::FromStr;
 use anyhow::anyhow;
 
 use crate::{EventType, Semester};
-use crate::mobile::{ActorType, StudentEvent};
+use crate::mobile::{ActorType, StudentEvent, StudentExams};
 
 fn get_flat_attrs(root: roxmltree::Node) -> HashMap<String, String> {
     let mut flat_attrs: HashMap<String, String> = HashMap::new();
@@ -69,12 +69,58 @@ pub fn parse_actor_type(input: String) -> Result<ActorType, anyhow::Error> {
         actor.text().ok_or_else(|| anyhow!("Failed parsing actortype XML: Missing inner text"))?)
 }
 
+pub fn parse_get_exams(xml_input: String) -> Result<StudentExams, serde_xml_rs::Error> {
+    serde_xml_rs::from_str(&xml_input)
+}
 
 #[cfg(test)]
-mod tests_mobile {
+mod tests_mobile_parser {
     use std::assert_eq;
+
     use crate::mobile::ActorType;
-    use crate::mobile::parse::{parse_actor_type, parse_student_events};
+    use crate::mobile::parse::{parse_actor_type, parse_get_exams, parse_student_events};
+
+    #[test]
+    fn test_get_exams() {
+        parse_get_exams(r#"<?xml version="1.0" encoding="UTF-8" standalone="no" ?><mgns1:Message xmlns:mgns1="http://datenlotsen.de">
+           <mgns1:studentExam>
+                <mgns1:examID>108751472457</mgns1:examID>
+                <mgns1:examName>Online-Tests</mgns1:examName>
+                <mgns1:context>24-300.10 Ringvorlesung zur Klimakrise: Weil jedes zehntel Grad zählt!</mgns1:context>
+                <mgns1:contextType>modul</mgns1:contextType>
+                <mgns1:subject/>
+                <mgns1:beginDate/>
+                <mgns1:dueDate/>
+                <mgns1:timeFrom/>
+                <mgns1:timeTo/>
+                <mgns1:grade>b</mgns1:grade>
+                <mgns1:gradeDescription>bestanden</mgns1:gradeDescription>
+                <mgns1:instructorString/>
+                <mgns1:status>bestanden</mgns1:status>
+                <mgns1:statusSystem>1</mgns1:statusSystem>
+                <mgns1:semesterID>99999998509884</mgns1:semesterID>
+                <mgns1:semesterName>WiSe 21/22</mgns1:semesterName>
+              </mgns1:studentExam>
+          <mgns1:studentExam>
+                <mgns1:examID>108751472457</mgns1:examID>
+                <mgns1:examName>Online-Tests</mgns1:examName>
+                <mgns1:context>24-300.20 Ringvorlesung zur Klimakrise: System Change not Climate Change ANMELDEHINWEIS IN VERANSTALTUNGSDETAILS BEACHTEN!</mgns1:context>
+                <mgns1:contextType>course</mgns1:contextType>
+                <mgns1:subject/>
+                <mgns1:beginDate/>
+                <mgns1:dueDate>15.02.2024</mgns1:dueDate>
+                <mgns1:timeFrom>12:30</mgns1:timeFrom>
+                <mgns1:timeTo>13:30</mgns1:timeTo>
+                <mgns1:grade>2,3</mgns1:grade>
+                <mgns1:gradeDescription>gut</mgns1:gradeDescription>
+                <mgns1:instructorString>Prof. Dr. John Pork</mgns1:instructorString>
+                <mgns1:status>noch nicht veröffentlicht</mgns1:status>
+                <mgns1:statusSystem>0</mgns1:statusSystem>
+                <mgns1:semesterID>99999999254942</mgns1:semesterID>
+                <mgns1:semesterName>SoSe 24</mgns1:semesterName>
+          </mgns1:studentExam>
+        </mgns1:Message>"#.to_string()).expect("TODO: panic message");
+    }
 
     #[test]
     fn test_actor_type() {

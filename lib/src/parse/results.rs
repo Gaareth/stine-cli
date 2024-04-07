@@ -26,8 +26,8 @@ fn parse_grad_missing(grade_stats: &mut GradeStats, key: &str, value: &str) -> R
                 grade_stats.missing_without_reason = i32_value
             }
 
-            // yes, this is correct for both languages
-            "annulliert" | "annulliert" => {
+            // its the same in both languages
+            "annulliert"  => {
                 grade_stats.missing_canceled = i32_value
             }
 

@@ -1,4 +1,3 @@
-#![feature(let_chains)]
 
 use std::env;
 use std::fs;
@@ -9,40 +8,22 @@ use std::time::Instant;
 use lazy_static::lazy_static;
 
 use stine_rs::Stine;
+use crate::common::env_auth;
 
-fn auth() -> Stine {
-    dotenv::from_path("../.env")
-        .expect("Failed loading .env file. \
-        Make sure there is a .env file in stine-rs/ and you are running from stine-rs/lib");
-
-    // try session first to reduce login calls
-    // cons: the session key wont be update, TODO: impl this :(
-    if let Ok(session) = env::var("session")
-        && let Ok(cnsc_cookie) = env::var("cookie") {
-        if let Ok(stine) = Stine::new_session(cnsc_cookie.as_str(), session.as_str()) {
-            return stine;
-        }
-    }
-
-    Stine::new(env::var("username").unwrap().as_str(),
-               env::var("password").unwrap().as_str())
-        .expect("Failed authenticating with Stine")
-}
-
+mod common;
 
 mod test_auth {
     use stine_rs::Stine;
-
-    use crate::auth;
+    use crate::common::env_auth;
 
     #[test]
     fn test_credentials() {
-        auth();
+        env_auth();
     }
 
     #[test]
     fn test_short_session() {
-        let s = auth();
+        let s = env_auth();
         let session = s.session.unwrap();
         let cnsc = s.cnsc_cookie.unwrap();
 
@@ -56,7 +37,7 @@ lazy_static! {
     }
 
 fn auth_test_cache() -> Stine {
-    auth().with_cache_dir(
+    env_auth().with_cache_dir(
         TEST_CACHE_DIR.to_path_buf()
     ).unwrap()
 }
@@ -89,13 +70,14 @@ mod test_functionality {
 
     use stine_rs::{Language, LazyLevel, Stine, SubModule};
 
-    use crate::{auth, auth_test_cache, clear_test_cache_dir, init_logger, STINE};
+    use crate::{auth_test_cache, clear_test_cache_dir, init_logger, STINE};
+    use crate::common::env_auth;
 
     #[test]
     fn test_output_log() {
         init_logger();
         info!("test");
-        auth();
+        env_auth();
     }
 
     #[test]

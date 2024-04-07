@@ -18,6 +18,7 @@ use serde::de::DeserializeOwned;
 use thiserror::Error;
 
 use stine_rs::{CourseResult, Document, LazyLevel, MyRegistrations, RegistrationPeriod, SemesterResult, Stine};
+use stine_rs::mobile::{StudentExam, StudentExams};
 
 use crate::Language;
 
@@ -28,6 +29,7 @@ const NOTIFY_PATH: &str = "./notify";
 #[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum NotifyEvent {
     ExamResult,
+    MobileExamResult,
     RegistrationPeriods,
     Documents,
     RegistrationStatus,
@@ -161,6 +163,8 @@ pub(crate) fn notify_command(sub_matches: &ArgMatches, stine: &mut Stine) {
         match event {
             NotifyEvent::ExamResult =>
                 { exam_update(stine, language, overwrite_lang, &files_path, dry_run) }
+            NotifyEvent::MobileExamResult =>
+                { mobile_exam_update(stine, language, overwrite_lang, &files_path, dry_run) }
             NotifyEvent::RegistrationPeriods =>
                 { period_update(stine, &files_path, dry_run) }
             NotifyEvent::Documents =>
@@ -368,6 +372,8 @@ fn format_changes<'a, T: Eq + Hash + Clone + ToString + 'a>(new: Vec<T>, removed
 fn calc_format_changes<'a, T: Eq + Hash + Clone + ToString + 'a>(old: Vec<T>, current: Vec<T>, message: &'a str)
                                                                  -> impl Iterator<Item=(String, Change<String>)> + 'a {
     let (new, removed) = calc_changes(old, current);
+    dbg!(&new.len());
+    dbg!(&removed.len());
     format_changes(new, removed, message)
 }
 
@@ -502,13 +508,60 @@ fn exam_update(stine: &mut Stine,
         //     println!("[!] No new exam updates found")
         // }
     } else {
-        warn!("This seems to be the first check for new exams [{} does not exist]. Therefore you won't receive any notifications.\
+        warn!("This seems to be the first check for new exams [{} does not exist]. Therefore you won't receive any notifications. \
         Only subsequent runs will results in changes and notifications.", file_path.display())
     }
 
     save_dw(&stine, arg_lang, &path, dry, &file_name, latest_map);
 
     NotificationGroup::from_changes(Changes::new(changes), "Update in course results", vec![])
+}
+
+
+/// checks for new exam updates in the stine mobile app
+fn mobile_exam_update(stine: &mut Stine,
+                      arg_lang: Option<&Language>, overwrite_lang: bool,
+                      path: &Path, dry: bool)
+                      -> NotificationGroup {
+    let file_name = "exam_results_mobile.json";
+
+    // load data first, to check if the saved language differs from the passed one
+    let data: Option<DataWrapper<HashMap<String, StudentExam>>> =
+        load_data(path, file_name, arg_lang, overwrite_lang, stine);
+
+    fn map_mobile_exam_by_id(exams: StudentExams) -> HashMap<String, StudentExam> {
+        let mut exam_map: HashMap<String, StudentExam> = HashMap::new();
+
+        for exam in exams.exams {
+            exam_map.insert(exam.clone().exam_id, exam);
+        }
+
+        exam_map
+    }
+
+    let latest_data: StudentExams = stine.get_exams_mobile()
+        .expect("Failed fetching exams from the stine mobile app");
+
+    let latest_map = map_mobile_exam_by_id(latest_data);
+    // dbg!(&latest_map);
+
+    let mut changes = vec![];
+    let file_path = path.join(file_name);
+    dbg!(&file_path.exists());
+    if file_path.exists() {
+        let data = data.unwrap();
+        let old_map: HashMap<String, StudentExam> = data.data;
+
+        changes = get_exam_changes_mobile(old_map, &latest_map);
+        debug!("Exam changes: {changes:#?}");
+    } else {
+        warn!("This seems to be the first check for new exams [{} does not exist]. Therefore you won't receive any notifications. \
+        Only subsequent runs will results in changes and notifications.", file_path.display())
+    }
+
+    save_dw(&stine, arg_lang, &path, dry, &file_name, latest_map);
+
+    NotificationGroup::from_changes(Changes::new(changes), "Update in course results [mobile]", vec![])
 }
 
 /// converts `SemesterResult` list to Map of `CourseResults` where
@@ -550,6 +603,61 @@ impl<T> Change<T> {
     }
 }
 
+fn get_struct_diff<T: Serialize>(a: &T, b: &T) -> Result<Vec<(String, Change<String>)>, anyhow::Error> {
+    let json_a = serde_json::to_value(a)?;
+    let json_b = serde_json::to_value(b)?;
+
+    let mut changes = vec![];
+
+    for (key, value) in json_a.as_object().unwrap() {
+        let old_value = json_b.get(key).unwrap();
+        if old_value != value {
+            let change = Change::new(
+                old_value.clone().to_string(),
+                value.clone().to_string());
+            changes.push((key.clone(), change));
+        }
+    }
+
+    Ok(changes)
+}
+
+fn get_exam_changes_mobile(old_map: HashMap<String, StudentExam>, new_map: &HashMap<String, StudentExam>)
+                           -> Vec<(String, Change<String>)> {
+    let mut changes: Vec<(String, Change<String>)> = Vec::new();
+
+    for (course_number, exam) in new_map.clone() {
+        let name = exam.clone().context;
+
+        if let Some(old_exam) = old_map.get(&course_number) {
+            // compare to old entry
+            for (key, change) in get_struct_diff(old_exam, &exam).unwrap() {
+                changes.push((format!("{name} - [{key}]"), change));
+            }
+
+
+            // if old_exam.status != exam.status {
+            //     // print_change(&name, &old_course.status, &course.status);
+            //     changes.push((name.clone(),
+            //                   Change::new(old_exam.clone().status, exam.status)));
+            // }
+        } else if !exam.status.is_empty() &&
+            exam.status != "&nbsp;" {
+            // if the exam/course entry is new send an change.
+            // But only if the new data is not None or empty.
+            // This is to prevent changes like: [Course name] - -> Final Grade: None.
+            // Where the exam was added but without relevant info, so you don't? want the notification
+            changes.push(
+                (exam.context,
+                 Change::new(
+                     "-".to_string(),
+                     format!("Final Grade: {:?} | Status: {}", exam.grade, exam.status))));
+        }
+    }
+
+    changes
+}
+
 fn get_exam_changes(old_map: HashMap<String, CourseResult>, new_map: &HashMap<String, CourseResult>)
                     -> Vec<(String, Change<String>)> {
     let mut changes: Vec<(String, Change<String>)> = Vec::new();
@@ -580,7 +688,7 @@ fn get_exam_changes(old_map: HashMap<String, CourseResult>, new_map: &HashMap<St
             // if the exam/course entry is new send an change.
             // But only if the new data is not None or empty.
             // This is to prevent changes like: [Course name] - -> Final Grade: None.
-            // Where essentially the exam was added but without relevant info, so you dont want the notification
+            // Where the exam was added but without relevant info, so you don't? want the notification
             changes.push(
                 (course.name,
                  Change::new(

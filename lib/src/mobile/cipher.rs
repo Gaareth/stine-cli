@@ -1,13 +1,12 @@
 use std::num::NonZeroU32;
-use std::ptr::hash;
 
 use base64::{Engine, engine::general_purpose};
 use cipher::{AsyncStreamCipher, KeyIvInit};
 use cipher::generic_array::GenericArray;
+use md5::{Digest, Md5};
 use rand::Rng;
 use ring::pbkdf2;
 use ring::pbkdf2::PBKDF2_HMAC_SHA1;
-use md5::{Md5, Digest};
 
 fn create_secret_key(str: &[u8], salt: &[u8]) -> [u8; 16] {
     let mut store = [0u8; 16];
@@ -25,9 +24,9 @@ fn base64_encode(input: &[u8]) -> String {
 
 fn base64_decode(input: String) -> Vec<u8> {
     let input = input.replace("\n", "")
-                .replace('-', "+")
-                .replace('_', "=")
-                .replace('~', "/");
+        .replace('-', "+")
+        .replace('_', "=")
+        .replace('~', "/");
     general_purpose::STANDARD.decode(input).unwrap()
 }
 
@@ -85,7 +84,7 @@ pub fn encrypt_arguments(prg_name: String, session_id: String, args: Vec<&str>) 
 
 
 #[cfg(test)]
-mod tests {
+mod tests_mobile_cipher {
     use crate::mobile::cipher::{base64_encode, create_secret_key, decrypt, encrypt, encrypt_arguments};
 
     #[test]
@@ -120,5 +119,4 @@ mod tests {
         let dec = decrypt("D29eG5fjMQg2-pLsosNNJXtyUUecTow~L8L7GXBXXjbk-iG3c12j3PlHWCyvTs81hS241A__".to_string());
         assert_eq!(dec, "test")
     }
-
 }
