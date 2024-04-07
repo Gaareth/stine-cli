@@ -1,10 +1,8 @@
-
 use std::str::FromStr;
 
 use log::{debug, error, trace};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
-
 
 use crate::{CourseResult, GradeStats, LazyLevel, Semester, SemesterResult};
 use crate::parse::utils::{get_next_selection, parse_float, parse_string, wrap_parse_float};
@@ -158,26 +156,32 @@ fn parse_semester_result(html: &Html, stine: &Stine, semester: Semester, lazy_le
 
             let grade_stats: Option<LazyLoaded<GradeStats>>
                 = get_next_selection(row, "td:nth-child(7) > script")
-                .map(|script| {
+                .and_then(|script| {
                     let script = script.inner_html();
                     // some id like: 381865010228083
                     let course_id_regex = Regex::new("-AMOFF,(.*),-N0").unwrap();
-                    let caps = course_id_regex.captures(&script).unwrap();
-                    let id = caps.get(1).unwrap().as_str();
-                    let id = &id[2..]; // -N381865010228083 -> 381865010228083
+                    let caps = course_id_regex.captures(&script);
 
-                    if lazy_level != LazyLevel::FullLazy {
-                        trace!("NotLazy: Requesting grade stats for course");
-                        LazyLoaded {
-                            status: Lazy::Loaded(stine.get_grade_stats_for_course(id)),
-                            link: id.to_string(),
-                        }
-                    } else {
-                        LazyLoaded {
-                            status: Lazy::Unloaded,
-                            link: id.to_string(),
+                    if let Some(caps) = caps {
+                        let id = caps.get(1).unwrap().as_str();
+                        let id = &id[2..]; // -N381865010228083 -> 381865010228083
+
+                        return if lazy_level != LazyLevel::FullLazy {
+                            trace!("NotLazy: Requesting grade stats for course");
+                            Some(LazyLoaded {
+                                status: Lazy::Loaded(stine.get_grade_stats_for_course(id)),
+                                link: id.to_string(),
+                            })
+                        } else {
+                            Some(LazyLoaded {
+                                status: Lazy::Unloaded,
+                                link: id.to_string(),
+                            })
                         }
                     }
+                    //TODO: parse grade stats where there was no grading? NOT AMOFF, but ACOUR as argument and regex pattern
+                    error!("Failed parsing grade stats for {name} ({semester})");
+                    None
                 });
 
 
