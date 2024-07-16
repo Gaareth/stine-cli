@@ -628,7 +628,7 @@ fn get_exam_changes_mobile(old_map: HashMap<String, StudentExam>, new_map: &Hash
 
         if let Some(old_exam) = old_map.get(&course_number) {
             // compare to old entry
-            for (key, change) in get_struct_diff(old_exam, &exam).unwrap() {
+            for (key, change) in get_struct_diff(&exam, old_exam).unwrap() {
                 changes.push((format!("{name} - [{key}]"), change));
             }
 
