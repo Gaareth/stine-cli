@@ -372,8 +372,6 @@ fn format_changes<'a, T: Eq + Hash + Clone + ToString + 'a>(new: Vec<T>, removed
 fn calc_format_changes<'a, T: Eq + Hash + Clone + ToString + 'a>(old: Vec<T>, current: Vec<T>, message: &'a str)
                                                                  -> impl Iterator<Item=(String, Change<String>)> + 'a {
     let (new, removed) = calc_changes(old, current);
-    dbg!(&new.len());
-    dbg!(&removed.len());
     format_changes(new, removed, message)
 }
 
@@ -547,7 +545,6 @@ fn mobile_exam_update(stine: &mut Stine,
 
     let mut changes = vec![];
     let file_path = path.join(file_name);
-    dbg!(&file_path.exists());
     if file_path.exists() {
         let data = data.unwrap();
         let old_map: HashMap<String, StudentExam> = data.data;
